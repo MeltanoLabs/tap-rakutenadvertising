@@ -1,0 +1,49 @@
+send_anonymous_usage_stats: true
+project_id: "tap-rakutenadvertising"
+default_environment: test
+requires_meltano: ">=4.0"
+environments:
+- name: test
+plugins:
+  extractors:
+  - name: "tap-rakutenadvertising"
+    namespace: "tap_rakutenadvertising"
+    pip_url: -e .
+    capabilities:
+    - state
+    - catalog
+    - discover
+    - about
+    - stream-maps
+    - structured-logging
+
+    settings:
+    - name: auth_token
+      kind: password
+      label: Auth Token
+      description: Bearer token for the Rakuten Advertising API. Generate one at https://developers.rakutenadvertising.com.
+      sensitive: true
+
+    - name: start_date
+      kind: date_iso8601
+      label: Start Date
+      description: >
+        Earliest date to sync incremental streams (events, publisher_contributed_conversions).
+        ISO 8601 format, e.g. 2024-01-01T00:00:00Z. Defaults to 6 months ago.
+
+    - name: api_url
+      kind: string
+      label: API URL
+      description: Base URL for the Rakuten Advertising API.
+      value: https://api.linksynergy.com
+
+    settings_group_validation:
+    - [auth_token]
+
+    config:
+      start_date: 6 months ago
+
+  loaders:
+  - name: target-jsonl
+    variant: andyh1203
+    pip_url: target-jsonl
