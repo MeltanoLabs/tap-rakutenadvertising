@@ -29,7 +29,7 @@ license-files = [ "LICENSE" ]
 requires-python = ">=3.10"
 dependencies = [
     "singer-sdk[faker]~=0.53.6",
-    "requests~=2.32.3",
+    "requests~=2.33.0",
     "xmltodict~=0.14.1",
     "typing-extensions>=4.5.0; python_version < '3.13'",
 ]
