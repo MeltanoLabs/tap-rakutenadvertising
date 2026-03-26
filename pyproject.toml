@@ -56,6 +56,7 @@ typing = [
     "mypy>=1.19.1",
     "ty>=0.0.18",
     "types-requests",
+    "types-xmltodict",
 ]
 
 [tool.hatch.version]

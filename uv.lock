@@ -1607,6 +1607,7 @@ typing = [
     { name = "mypy" },
     { name = "ty" },
     { name = "types-requests" },
+    { name = "types-xmltodict" },
 ]
 
 [package.metadata]
@@ -1634,6 +1635,7 @@ typing = [
     { name = "mypy", specifier = ">=1.19.1" },
     { name = "ty", specifier = ">=0.0.18" },
     { name = "types-requests" },
+    { name = "types-xmltodict" },
 ]
 
 [[package]]
@@ -1724,6 +1726,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/6c/b1/66bafdc85965e5aa3db42e1b9128bf8abe252edd7556d00a07ef437a3e0e/types_requests-2.32.4.20260324.tar.gz", hash = "sha256:33a2a9ccb1de7d4e4da36e347622c35418f6761269014cc32857acabd5df739e", size = 23765, upload-time = "2026-03-24T04:06:35.106Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/5b/5a/ce5999f9bd72c7fac681d26cd0a5782b379053bfc2214e2a3fbe30852c9e/types_requests-2.32.4.20260324-py3-none-any.whl", hash = "sha256:f83ef2deb284fe99a249b8b0b0a3e4b9809e01ff456063c4df0aac7670c07ab9", size = 20735, upload-time = "2026-03-24T04:06:33.9Z" },
+]
+
+[[package]]
+name = "types-xmltodict"
+version = "1.0.1.20260113"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/57/32/da41b9af1da90eb0a46489c49375f74f29297ce0c4feb65a81f26faf1d41/types_xmltodict-1.0.1.20260113.tar.gz", hash = "sha256:d19ecffd2cf84956107432b0ef0d688dd606249dedfbcd16c66cec8357a95d97", size = 8752, upload-time = "2026-01-13T03:20:13.785Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/99/56f785dbd6ff16e0bed77bb5b2d151903e2c96ae370e2865d1da8a70982b/types_xmltodict-1.0.1.20260113-py3-none-any.whl", hash = "sha256:01a79b2f979aaf91d90982cdd878768ea9571866e7a2d50e82f9a4998e2d5d00", size = 8383, upload-time = "2026-01-13T03:20:12.744Z" },
 ]
 
 [[package]]
