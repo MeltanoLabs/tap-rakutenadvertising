@@ -13,9 +13,25 @@ Built with the [Meltano Tap SDK](https://sdk.meltano.com) for Singer Taps.
 | `advertiser_search` | `GET /advertisersearch/1.0` | Full table | `mid` |
 | `partnerships` | `GET /v1/partnerships` | Full table | `advertiser_id` |
 | `publisher_contributed_conversions` | `GET /v1/publishers/contributed-conversions` | Incremental (`order_datetime`) | `publisher_id`, `order_id`, `order_datetime` |
+| `offers` | `GET /v1/offers` | Full table | `goid` |
+| `commissioning_lists` | `GET /v1/commissioninglists` | Full table | `list_id` |
+| `coupons` | `GET /coupon/1.0` | Full table | `clickurl` |
+| `product_search` | `GET /productsearch/1.0` | Full table | `mid`, `sku` |
+| `text_links` | `GET /linklocator/1.0/getTextLinks/...` | Full table | `linkID` |
+| `banner_links` | `GET /linklocator/1.0/getBannerLinks/...` | Full table | `linkID` |
+| `drm_links` | `GET /linklocator/1.0/getDRMLinks/...` | Full table | `linkID` |
+| `creative_categories` | `GET /linklocator/1.0/getCreativeCategories/...` | Full table | `mid`, `catId` |
 
 Stream schemas are sourced directly from the OpenAPI specification at
 `tap_rakutenadvertising/openapi.json` using the Singer SDK's `OpenAPISchema` integration.
+
+### Stream Notes
+
+- **`product_search`**: Requires at least `product_search_keyword` or `product_search_mid` to be configured. The API returns a maximum of 5,000 results.
+- **`coupons`**: Uses `clickurl` as the primary key since the API does not provide a unique coupon identifier.
+- **`text_links`, `banner_links`, `drm_links`**: Use the Link Locator API with path-based parameters. Configure `link_locator_advertiser_id` and `link_locator_category_id` to filter results (default `-1` = all). Date range defaults to `start_date` config through today.
+- **`creative_categories`**: Returns creative categories for the configured `link_locator_advertiser_id` (default `-1` = all).
+- **`offers`**: The `offer_status` config parameter is required by the API (default: `active`). Nested advertiser and offer rules data is included.
 
 ## Installation
 
@@ -34,6 +50,12 @@ uv tool install git+https://github.com/ORG_NAME/tap-rakutenadvertising.git@main
 | `auth_token` | ✅ | — | Bearer token for the Rakuten Advertising API |
 | `start_date` | ☐ | 6 months ago | Earliest date to sync incremental streams (ISO 8601, e.g. `2024-01-01T00:00:00Z`) |
 | `api_url` | ☐ | `https://api.linksynergy.com` | Base URL for the Rakuten Advertising API |
+| `offer_status` | ☐ | `active` | Filter for the `offers` stream. One of: `active`, `available`, `upcoming` |
+| `product_search_keyword` | ☐ | — | Search keyword for the `product_search` stream |
+| `product_search_mid` | ☐ | — | Advertiser ID filter for the `product_search` stream |
+| `link_locator_advertiser_id` | ☐ | `-1` | Advertiser ID for Link Locator streams (`-1` = all) |
+| `link_locator_category_id` | ☐ | `-1` | Category ID for Link Locator streams (`-1` = all) |
+| `banner_size_code` | ☐ | `-1` | Banner size code for the `banner_links` stream (`-1` = all) |
 
 A full list of supported settings and capabilities is available by running:
 

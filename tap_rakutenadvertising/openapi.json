@@ -4838,6 +4838,157 @@
                     "conversion_publisher_category": { "type": "string",  "description": "Publisher category based on Affiliate Conversion Journey" },
                     "u1":                            { "type": "string",  "description": "Publisher-appended tracking field (may be masked)" }
                 }
+            },
+            "Offer": {
+                "type": "object",
+                "description": "A flattened offer record. The nested advertiser object is flattened into advertiser_* fields.",
+                "properties": {
+                    "advertiser_id":      { "type": "integer", "description": "Advertiser ID" },
+                    "advertiser_name":    { "type": "string",  "description": "Advertiser name" },
+                    "advertiser_network": { "type": "string",  "description": "Advertiser network" },
+                    "advertiser_status":  { "type": "string",  "description": "Advertiser status" },
+                    "advertiser_details": { "type": "string",  "description": "URL to advertiser details" },
+                    "offer_number":       { "type": "string",  "description": "Offer number" },
+                    "goid":               { "type": "integer", "description": "Group Offer ID" },
+                    "status":             { "type": "string",  "description": "Offer status" },
+                    "name":               { "type": "string",  "description": "Offer name" },
+                    "type":               { "type": "string",  "description": "Offer type" },
+                    "auto_renew":         { "type": "boolean", "description": "Whether the offer auto-renews" },
+                    "return_days":        { "type": "integer", "description": "Return window in days" },
+                    "truelock":           { "type": "boolean", "description": "Truelock status" },
+                    "update_window":      { "type": "integer", "description": "Update window in days" },
+                    "start_datetime":     { "type": "string",  "format": "date-time", "description": "Offer start date" },
+                    "end_datetime":       { "type": "string",  "format": "date-time", "description": "Offer end date" },
+                    "terms_url":          { "type": "string",  "description": "URL to offer terms" },
+                    "offer_rules":        { "type": "array",   "items": { "type": "object" }, "description": "Offer rules with commissions and tiers" }
+                }
+            },
+            "CommissioningList": {
+                "type": "object",
+                "description": "A flattened commissioning list record.",
+                "properties": {
+                    "advertiser_id":           { "type": "integer", "description": "Advertiser ID" },
+                    "advertiser_details":      { "type": "string",  "description": "URL to advertiser details" },
+                    "offers":                  { "type": "array",   "items": { "type": "object" }, "description": "Associated offers" },
+                    "list_name":               { "type": "string",  "description": "Name of the commissioning list" },
+                    "list_id":                 { "type": "string",  "description": "Unique list identifier" },
+                    "last_modified_datetime":  { "type": "string",  "format": "date-time", "description": "Last modified timestamp" },
+                    "details":                 { "type": "string",  "description": "URL to list details" }
+                }
+            },
+            "Coupon": {
+                "type": "object",
+                "description": "A coupon/promotional link record parsed from XML.",
+                "properties": {
+                    "advertiserid":     { "type": "integer", "description": "Advertiser ID" },
+                    "advertisername":   { "type": "string",  "description": "Advertiser name" },
+                    "network_id":       { "type": "integer", "description": "Network ID" },
+                    "offerdescription": { "type": "string",  "description": "Offer description" },
+                    "offerstartdate":   { "type": "string",  "description": "Offer start date" },
+                    "offerenddate":     { "type": "string",  "description": "Offer end date" },
+                    "couponcode":       { "type": "string",  "description": "Coupon code" },
+                    "couponrestriction":{ "type": "string",  "description": "Coupon restriction details" },
+                    "clickurl":         { "type": "string",  "description": "Click tracking URL" },
+                    "impressionpixel":  { "type": "string",  "description": "Impression tracking pixel URL" },
+                    "categories":       { "type": "array",   "items": { "type": "object" }, "description": "Associated categories" },
+                    "promotiontypes":   { "type": "array",   "items": { "type": "object" }, "description": "Promotion types" }
+                }
+            },
+            "Product": {
+                "type": "object",
+                "description": "A product record from product search, parsed from XML with flattened nested fields.",
+                "properties": {
+                    "mid":                { "type": "integer", "description": "Advertiser/Merchant ID" },
+                    "merchantname":       { "type": "string",  "description": "Merchant name" },
+                    "linkid":             { "type": "string",  "description": "Link ID" },
+                    "createdon":          { "type": "string",  "description": "Creation date" },
+                    "sku":                { "type": "string",  "description": "Product SKU" },
+                    "productname":        { "type": "string",  "description": "Product name" },
+                    "category_primary":   { "type": "string",  "description": "Primary category" },
+                    "category_secondary": { "type": "string",  "description": "Secondary category" },
+                    "price":              { "type": "string",  "description": "Product price" },
+                    "saleprice":          { "type": "string",  "description": "Sale price" },
+                    "upccode":            { "type": "string",  "description": "UPC code" },
+                    "description_short":  { "type": "string",  "description": "Short description" },
+                    "description_long":   { "type": "string",  "description": "Long description" },
+                    "keywords":           { "type": "string",  "description": "Product keywords" },
+                    "linkurl":            { "type": "string",  "description": "Product link URL" },
+                    "imageurl":           { "type": "string",  "description": "Product image URL" }
+                }
+            },
+            "TextLink": {
+                "type": "object",
+                "description": "A text link record from Link Locator API, with ns1: prefixes stripped.",
+                "properties": {
+                    "campaignID":  { "type": "integer", "description": "Campaign ID" },
+                    "categoryID":  { "type": "integer", "description": "Category ID" },
+                    "categoryName":{ "type": "string",  "description": "Category name" },
+                    "linkID":      { "type": "integer", "description": "Link ID" },
+                    "linkName":    { "type": "string",  "description": "Link name" },
+                    "mid":         { "type": "integer", "description": "Advertiser ID" },
+                    "nid":         { "type": "integer", "description": "Network ID" },
+                    "clickURL":    { "type": "string",  "description": "Click tracking URL" },
+                    "endDate":     { "type": "string",  "description": "Link end date" },
+                    "landURL":     { "type": "string",  "description": "Landing page URL" },
+                    "showURL":     { "type": "string",  "description": "Impression tracking URL" },
+                    "startDate":   { "type": "string",  "description": "Link start date" },
+                    "textDisplay": { "type": "string",  "description": "Display text for the link" }
+                }
+            },
+            "BannerLink": {
+                "type": "object",
+                "description": "A banner link record from Link Locator API, with ns1: prefixes stripped.",
+                "properties": {
+                    "campaignID":  { "type": "integer", "description": "Campaign ID" },
+                    "categoryID":  { "type": "integer", "description": "Category ID" },
+                    "categoryName":{ "type": "string",  "description": "Category name" },
+                    "linkID":      { "type": "integer", "description": "Link ID" },
+                    "linkName":    { "type": "string",  "description": "Link name" },
+                    "mid":         { "type": "integer", "description": "Advertiser ID" },
+                    "nid":         { "type": "integer", "description": "Network ID" },
+                    "clickURL":    { "type": "string",  "description": "Click tracking URL" },
+                    "endDate":     { "type": "string",  "description": "Link end date" },
+                    "landURL":     { "type": "string",  "description": "Landing page URL" },
+                    "showURL":     { "type": "string",  "description": "Impression tracking URL" },
+                    "startDate":   { "type": "string",  "description": "Link start date" },
+                    "height":      { "type": "integer", "description": "Banner height in pixels" },
+                    "width":       { "type": "integer", "description": "Banner width in pixels" },
+                    "size":        { "type": "integer", "description": "Banner size code" },
+                    "iconURL":     { "type": "string",  "description": "Icon URL" },
+                    "imgURL":      { "type": "string",  "description": "Banner image URL" },
+                    "serverType":  { "type": "integer", "description": "Server type code" }
+                }
+            },
+            "DRMLink": {
+                "type": "object",
+                "description": "A dynamic rich media link record from Link Locator API, with ns1: prefixes stripped.",
+                "properties": {
+                    "campaignID":  { "type": "integer", "description": "Campaign ID" },
+                    "categoryID":  { "type": "integer", "description": "Category ID" },
+                    "categoryName":{ "type": "string",  "description": "Category name" },
+                    "linkID":      { "type": "integer", "description": "Link ID" },
+                    "linkName":    { "type": "string",  "description": "Link name" },
+                    "mid":         { "type": "integer", "description": "Advertiser ID" },
+                    "nid":         { "type": "integer", "description": "Network ID" },
+                    "code":        { "type": "string",  "description": "DRM embed code" },
+                    "endDate":     { "type": "string",  "description": "Link end date" },
+                    "height":      { "type": "integer", "description": "DRM height in pixels" },
+                    "width":       { "type": "integer", "description": "DRM width in pixels" },
+                    "size":        { "type": "integer", "description": "DRM size code" },
+                    "showURL":     { "type": "string",  "description": "Impression tracking URL" },
+                    "startDate":   { "type": "string",  "description": "Link start date" },
+                    "serverType":  { "type": "integer", "description": "Server type code" }
+                }
+            },
+            "CreativeCategory": {
+                "type": "object",
+                "description": "A creative category record from Link Locator API, with ns1: prefixes stripped.",
+                "properties": {
+                    "catId":   { "type": "integer", "description": "Category ID" },
+                    "catName": { "type": "string",  "description": "Category name" },
+                    "mid":     { "type": "integer", "description": "Advertiser ID" },
+                    "nid":     { "type": "integer", "description": "Network ID" }
+                }
             }
         },
         "examples": {

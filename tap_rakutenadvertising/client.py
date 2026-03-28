@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from typing import TYPE_CHECKING, Any
 
+import xmltodict
 from singer_sdk.authenticators import BearerTokenAuthenticator
 from singer_sdk.pagination import BasePageNumberPaginator, SinglePagePaginator  # noqa: F401
 from singer_sdk.streams import RESTStream
@@ -40,6 +41,56 @@ class EventsPaginator(BasePageNumberPaginator):
         """If the response has as many records as the limit, there may be more."""
         data = response.json()
         return len(data) >= self._page_size
+
+
+class XMLPagePaginator(BasePageNumberPaginator):
+    """Paginator for XML endpoints that include TotalPages in their response."""
+
+    def __init__(
+        self,
+        start_value: int,
+        current_page_key: str = "PageNumber",
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(start_value, *args, **kwargs)
+        self._current_page_key = current_page_key
+
+    def has_more(self, response: requests.Response) -> bool:
+        """Check if there are more pages by comparing current page to total pages."""
+        data = xmltodict.parse(response.text)
+        root = next(iter(data.values()))
+        total_pages = int(root.get("TotalPages", 1))
+        current_page = int(root.get(self._current_page_key, 1))
+        return current_page < total_pages
+
+
+class LinkLocatorPaginator(BasePageNumberPaginator):
+    """Paginator for Link Locator XML endpoints with path-based pagination."""
+
+    def __init__(
+        self,
+        start_value: int,
+        response_key: str,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
+        super().__init__(start_value, *args, **kwargs)
+        self._response_key = response_key
+
+    def has_more(self, response: requests.Response) -> bool:
+        """Check if there are more pages by looking for ns1:return items."""
+        data = xmltodict.parse(response.text)
+        root = next(iter(data.values()))
+        response_items = root.get(self._response_key, {})
+        if isinstance(response_items, dict):
+            response_items = [response_items]
+        if not response_items:
+            return False
+        for item in response_items:
+            if "ns1:return" in item:
+                return True
+        return False
 
 
 class RakutenAdvertisingStream(RESTStream):

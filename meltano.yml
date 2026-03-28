@@ -37,6 +37,40 @@ plugins:
       description: Base URL for the Rakuten Advertising API.
       value: https://api.linksynergy.com
 
+    - name: offer_status
+      kind: string
+      label: Offer Status
+      description: Filter for the offers stream. One of active, available, upcoming.
+      value: active
+
+    - name: product_search_keyword
+      kind: string
+      label: Product Search Keyword
+      description: Search keyword for the product_search stream.
+
+    - name: product_search_mid
+      kind: integer
+      label: Product Search MID
+      description: Advertiser ID filter for the product_search stream.
+
+    - name: link_locator_advertiser_id
+      kind: integer
+      label: Link Locator Advertiser ID
+      description: Advertiser ID for Link Locator streams (-1 = all).
+      value: -1
+
+    - name: link_locator_category_id
+      kind: integer
+      label: Link Locator Category ID
+      description: Category ID for Link Locator streams (-1 = all).
+      value: -1
+
+    - name: banner_size_code
+      kind: integer
+      label: Banner Size Code
+      description: Banner size code for the banner_links stream (-1 = all).
+      value: -1
+
     settings_group_validation:
     - [auth_token]
 

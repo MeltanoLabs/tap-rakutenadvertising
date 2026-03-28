@@ -34,6 +34,40 @@ class TapRakutenAdvertising(Tap):
             default="https://api.linksynergy.com",
             description="The base URL for the Rakuten Advertising API",
         ),
+        th.Property(
+            "offer_status",
+            th.StringType(nullable=False),
+            default="active",
+            description="Filter for the offers stream. One of: active, available, upcoming",
+        ),
+        th.Property(
+            "product_search_keyword",
+            th.StringType(nullable=True),
+            description="Search keyword for the product_search stream",
+        ),
+        th.Property(
+            "product_search_mid",
+            th.IntegerType(nullable=True),
+            description="Advertiser ID filter for the product_search stream",
+        ),
+        th.Property(
+            "link_locator_advertiser_id",
+            th.IntegerType(nullable=True),
+            default=-1,
+            description="Advertiser ID for Link Locator streams (-1 = all)",
+        ),
+        th.Property(
+            "link_locator_category_id",
+            th.IntegerType(nullable=True),
+            default=-1,
+            description="Category ID for Link Locator streams (-1 = all)",
+        ),
+        th.Property(
+            "banner_size_code",
+            th.IntegerType(nullable=True),
+            default=-1,
+            description="Banner size code for the banner_links stream (-1 = all)",
+        ),
     ).to_dict()
 
     def discover_streams(self) -> list:
@@ -44,6 +78,14 @@ class TapRakutenAdvertising(Tap):
             streams.AdvertiserSearchStream(self),
             streams.PartnershipsStream(self),
             streams.PublisherContributedConversionsStream(self),
+            streams.OffersStream(self),
+            streams.CommissioningListsStream(self),
+            streams.CouponsStream(self),
+            streams.ProductSearchStream(self),
+            streams.TextLinksStream(self),
+            streams.BannerLinksStream(self),
+            streams.DRMLinksStream(self),
+            streams.CreativeCategoriesStream(self),
         ]
 
 
