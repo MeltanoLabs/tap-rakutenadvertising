@@ -34,6 +34,7 @@ class EventsPaginator(BasePageNumberPaginator):
     """Paginator for the Events API which returns a flat JSON array."""
 
     def __init__(self, start_value: int, page_size: int, *args: Any, **kwargs: Any) -> None:
+        """Initialize the paginator with a page size limit."""
         super().__init__(start_value, *args, **kwargs)
         self._page_size = page_size
 
@@ -53,6 +54,7 @@ class XMLPagePaginator(BasePageNumberPaginator):
         *args: Any,
         **kwargs: Any,
     ) -> None:
+        """Initialize the paginator with the XML key used to track the current page."""
         super().__init__(start_value, *args, **kwargs)
         self._current_page_key = current_page_key
 
@@ -75,6 +77,7 @@ class LinkLocatorPaginator(BasePageNumberPaginator):
         *args: Any,
         **kwargs: Any,
     ) -> None:
+        """Initialize the paginator with the XML key used to find response items."""
         super().__init__(start_value, *args, **kwargs)
         self._response_key = response_key
 
@@ -87,10 +90,7 @@ class LinkLocatorPaginator(BasePageNumberPaginator):
             response_items = [response_items]
         if not response_items:
             return False
-        for item in response_items:
-            if "ns1:return" in item:
-                return True
-        return False
+        return any("ns1:return" in item for item in response_items)
 
 
 class RakutenAdvertisingStream(RESTStream):

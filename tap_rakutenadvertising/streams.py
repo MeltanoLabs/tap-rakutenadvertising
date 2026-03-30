@@ -320,14 +320,15 @@ class CouponsStream(RakutenAdvertisingStream):
             links = [links]
         for link in links:
             record: dict[str, Any] = {}
-            record["advertiserid"] = (
-                int(link["advertiserid"]) if link.get("advertiserid") else None
-            )
+            record["advertiserid"] = int(link["advertiserid"]) if link.get("advertiserid") else None
             record["advertisername"] = link.get("advertisername")
+
             network = link.get("network", {})
-            record["network_id"] = (
-                int(network.get("@id")) if isinstance(network, dict) and network.get("@id") else None
-            )
+            if isinstance(network, dict) and (nid := network.get("@id")):
+                record["network_id"] = nid
+            else:
+                record["network_id"] = None
+
             record["offerdescription"] = link.get("offerdescription")
             record["offerstartdate"] = link.get("offerstartdate")
             record["offerenddate"] = link.get("offerenddate")
@@ -397,9 +398,17 @@ class ProductSearchStream(RakutenAdvertisingStream):
                 record["category_primary"] = None
                 record["category_secondary"] = None
             price = item.get("price", {})
-            record["price"] = price.get("#text") if isinstance(price, dict) else str(price) if price else None
+            record["price"] = (
+                price.get("#text") if isinstance(price, dict) else str(price) if price else None
+            )
             saleprice = item.get("saleprice", {})
-            record["saleprice"] = saleprice.get("#text") if isinstance(saleprice, dict) else str(saleprice) if saleprice else None
+            record["saleprice"] = (
+                saleprice.get("#text")
+                if isinstance(saleprice, dict)
+                else str(saleprice)
+                if saleprice
+                else None
+            )
             upccode = item.get("upccode")
             record["upccode"] = str(upccode) if upccode and upccode != {} else None
             description = item.get("description", {})
@@ -448,7 +457,7 @@ class TextLinksStream(RakutenAdvertisingStream):
         cat = self.config.get("link_locator_category_id", -1)
         start = _format_date_mmddyyyy(self.config.get("start_date"))
         end = datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
-        page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1  # noqa: SLF001
+        page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1
         return f"{self.url_base}/linklocator/1.0/getTextLinks/{adv}/{cat}/{start}/{end}/-1/{page}"
 
     @override
@@ -466,7 +475,7 @@ class TextLinksStream(RakutenAdvertisingStream):
         next_page_token: Any | None,
     ) -> requests.PreparedRequest:
         """Store page token before preparing request."""
-        self._page_token = next_page_token  # noqa: SLF001
+        self._page_token = next_page_token
         return super().prepare_request(context, next_page_token)
 
     @override
@@ -510,8 +519,11 @@ class BannerLinksStream(RakutenAdvertisingStream):
         start = _format_date_mmddyyyy(self.config.get("start_date"))
         end = datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
         banner_size = self.config.get("banner_size_code", -1)
-        page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1  # noqa: SLF001
-        return f"{self.url_base}/linklocator/1.0/getBannerLinks/{adv}/{cat}/{start}/{end}/{banner_size}/-1/{page}"
+        page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1
+        return (
+            f"{self.url_base}/linklocator/1.0/getBannerLinks"
+            f"/{adv}/{cat}/{start}/{end}/{banner_size}/-1/{page}"
+        )
 
     @override
     def get_url_params(
@@ -528,7 +540,7 @@ class BannerLinksStream(RakutenAdvertisingStream):
         next_page_token: Any | None,
     ) -> requests.PreparedRequest:
         """Store page token before preparing request."""
-        self._page_token = next_page_token  # noqa: SLF001
+        self._page_token = next_page_token
         return super().prepare_request(context, next_page_token)
 
     @override
@@ -571,7 +583,7 @@ class DRMLinksStream(RakutenAdvertisingStream):
         cat = self.config.get("link_locator_category_id", -1)
         start = _format_date_mmddyyyy(self.config.get("start_date"))
         end = datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
-        page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1  # noqa: SLF001
+        page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1
         return f"{self.url_base}/linklocator/1.0/getDRMLinks/{adv}/{cat}/{start}/{end}/-1/{page}"
 
     @override
@@ -589,7 +601,7 @@ class DRMLinksStream(RakutenAdvertisingStream):
         next_page_token: Any | None,
     ) -> requests.PreparedRequest:
         """Store page token before preparing request."""
-        self._page_token = next_page_token  # noqa: SLF001
+        self._page_token = next_page_token
         return super().prepare_request(context, next_page_token)
 
     @override
