@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import datetime
 import sys
-from pathlib import Path
+from importlib.resources import files
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import parse_qs
 
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
     import requests
     from singer_sdk.helpers.types import Context
 
-OPENAPI_SOURCE = OpenAPISchema(Path(__file__).parent / "openapi.json")
+OPENAPI_SOURCE = OpenAPISchema(files("tap_rakutenadvertising").joinpath("openapi.json"))
 
 EVENTS_PAGE_SIZE = 1000
 ADVERTISERS_PAGE_SIZE = 200

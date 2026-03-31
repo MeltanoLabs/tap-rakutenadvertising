@@ -65,7 +65,6 @@ class TestEventsPaginator:
         assert paginator.has_more(response) is has_more
 
 
-
 class TestXMLPagePaginator:
     def _make_response(
         self,
