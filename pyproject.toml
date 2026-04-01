@@ -79,6 +79,7 @@ unused-type-ignore-comment = "ignore"
 
 [tool.pytest]
 addopts = [
+    "-v",
     "-ra",
 ]
 filterwarnings = [
@@ -107,6 +108,14 @@ select = ["ALL"]
 [tool.ruff.lint.flake8-annotations]
 allow-star-arg-any = true
 
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = [
+    "ANN",    # type annotations not required in tests
+    "D1",     # docstrings not required in tests
+    "FBT001", # allow boolean positional arguments in tests
+    "S101",   # assert is standard in pytest
+]
+
 [tool.ruff.lint.pydocstyle]
 convention = "google"
 
@@ -127,6 +136,7 @@ env_list = [
 description = "run tests on Python {env_name}"
 runner = "uv-venv-lock-runner"
 pass_env = [
+    "CI",
     "GITHUB_*",
     "TAP_RAKUTENADVERTISING_*",
 ]

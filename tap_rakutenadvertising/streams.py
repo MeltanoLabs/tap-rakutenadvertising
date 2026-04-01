@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import datetime
 import sys
-from pathlib import Path
+from importlib.resources import files
 from typing import TYPE_CHECKING, Any, ClassVar
+from urllib.parse import parse_qs
 
 import xmltodict
 from singer_sdk import OpenAPISchema, StreamSchema
@@ -26,11 +27,12 @@ else:
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
+    from urllib.parse import ParseResult
 
     import requests
     from singer_sdk.helpers.types import Context
 
-OPENAPI_SOURCE = OpenAPISchema(Path(__file__).parent / "openapi.json")
+OPENAPI_SOURCE = OpenAPISchema(files("tap_rakutenadvertising").joinpath("openapi.json"))
 
 EVENTS_PAGE_SIZE = 1000
 ADVERTISERS_PAGE_SIZE = 200
@@ -60,15 +62,18 @@ class AdvertisersStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
-        return RakutenPaginator(start_value=0)
+        return RakutenPaginator()
 
     @override
     def get_url_params(
         self,
         context: Context | None,
-        next_page_token: Any | None,
+        next_page_token: ParseResult | None,
     ) -> dict[str, Any]:
-        return {"page": next_page_token, "limit": ADVERTISERS_PAGE_SIZE}
+        if next_page_token is not None:
+            return parse_qs(next_page_token.query)
+
+        return {"page": 1, "limit": ADVERTISERS_PAGE_SIZE}
 
 
 class EventsStream(RakutenAdvertisingStream):
@@ -84,7 +89,7 @@ class EventsStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> EventsPaginator:
-        return EventsPaginator(start_value=1, page_size=EVENTS_PAGE_SIZE)
+        return EventsPaginator(page_size=EVENTS_PAGE_SIZE)
 
     @override
     def get_url_params(
@@ -96,8 +101,7 @@ class EventsStream(RakutenAdvertisingStream):
             "page": next_page_token,
             "limit": EVENTS_PAGE_SIZE,
         }
-        start_value = self.get_starting_replication_key_value(context)
-        if start_value:
+        if start_value := self.get_starting_replication_key_value(context):
             params["process_date_start"] = start_value
         elif self.config.get("start_date"):
             params["process_date_start"] = self.config["start_date"]
@@ -148,15 +152,18 @@ class PartnershipsStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
-        return RakutenPaginator(start_value=1)
+        return RakutenPaginator()
 
     @override
     def get_url_params(
         self,
         context: Context | None,
-        next_page_token: Any | None,
+        next_page_token: ParseResult | None,
     ) -> dict[str, Any]:
-        return {"page": next_page_token, "limit": PARTNERSHIPS_PAGE_SIZE}
+        if next_page_token is not None:
+            return parse_qs(next_page_token.query)
+
+        return {"page": 1, "limit": PARTNERSHIPS_PAGE_SIZE}
 
     @override
     def post_process(
@@ -188,23 +195,24 @@ class PublisherContributedConversionsStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
-        return RakutenPaginator(start_value=1)
+        return RakutenPaginator()
 
     @override
     def get_url_params(
         self,
         context: Context | None,
-        next_page_token: Any | None,
+        next_page_token: ParseResult | None,
     ) -> dict[str, Any]:
+        if next_page_token is not None:
+            return parse_qs(next_page_token.query)
+
         params: dict[str, Any] = {
             "page": next_page_token,
             "limit": PUBLISHER_CONVERSIONS_PAGE_SIZE,
         }
-        start_value = self.get_starting_replication_key_value(context)
-        if start_value:
-            params["start_date"] = str(start_value)[:10]
-        elif self.config.get("start_date"):
-            params["start_date"] = self.config["start_date"][:10]
+        if start_dt := self.get_starting_timestamp(context):
+            params["start_date"] = start_dt.strftime("%Y-%m-%d")
+
         params["end_date"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
         return params
 
@@ -222,14 +230,17 @@ class OffersStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
-        return RakutenPaginator(start_value=1)
+        return RakutenPaginator()
 
     @override
     def get_url_params(
         self,
         context: Context | None,
-        next_page_token: Any | None,
+        next_page_token: ParseResult | None,
     ) -> dict[str, Any]:
+        if next_page_token is not None:
+            return parse_qs(next_page_token.query)
+
         return {
             "page": next_page_token,
             "limit": OFFERS_PAGE_SIZE,
@@ -265,14 +276,17 @@ class CommissioningListsStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
-        return RakutenPaginator(start_value=1)
+        return RakutenPaginator()
 
     @override
     def get_url_params(
         self,
         context: Context | None,
-        next_page_token: Any | None,
+        next_page_token: ParseResult | None,
     ) -> dict[str, Any]:
+        if next_page_token is not None:
+            return parse_qs(next_page_token.query)
+
         return {"page": next_page_token, "limit": COMMISSIONING_LISTS_PAGE_SIZE}
 
     @override
@@ -300,7 +314,7 @@ class CouponsStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> XMLPagePaginator:
-        return XMLPagePaginator(start_value=1, current_page_key="PageNumberRequested")
+        return XMLPagePaginator(current_page_key="PageNumberRequested")
 
     @override
     def get_url_params(
@@ -353,7 +367,7 @@ class ProductSearchStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> XMLPagePaginator:
-        return XMLPagePaginator(start_value=1)
+        return XMLPagePaginator()
 
     @override
     def get_url_params(
@@ -448,7 +462,7 @@ class TextLinksStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> LinkLocatorPaginator:
-        return LinkLocatorPaginator(start_value=1, response_key=self._response_key)
+        return LinkLocatorPaginator(response_key=self._response_key)
 
     @override
     def get_url(self, context: Context | None) -> str:
@@ -509,7 +523,7 @@ class BannerLinksStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> LinkLocatorPaginator:
-        return LinkLocatorPaginator(start_value=1, response_key=self._response_key)
+        return LinkLocatorPaginator(response_key=self._response_key)
 
     @override
     def get_url(self, context: Context | None) -> str:
@@ -574,7 +588,7 @@ class DRMLinksStream(RakutenAdvertisingStream):
 
     @override
     def get_new_paginator(self) -> LinkLocatorPaginator:
-        return LinkLocatorPaginator(start_value=1, response_key=self._response_key)
+        return LinkLocatorPaginator(response_key=self._response_key)
 
     @override
     def get_url(self, context: Context | None) -> str:
