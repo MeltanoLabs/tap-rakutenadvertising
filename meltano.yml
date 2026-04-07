@@ -129,6 +129,10 @@ plugins:
 
     settings_group_validation:
     - [auth_token]
+    # Advanced Reports streams require security_token
+    - [auth_token, security_token]
+    # Reporting Platform streams require both token and report keys
+    - [auth_token, reporting_api_token, reporting_report_keys]
 
     config:
       start_date: 6 months ago
