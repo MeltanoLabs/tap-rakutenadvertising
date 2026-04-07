@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from singer_sdk import Tap
 from singer_sdk import typing as th
 
 from tap_rakutenadvertising import streams
+
+if TYPE_CHECKING:
+    from tap_rakutenadvertising.client import RakutenAdvertisingStream
 
 
 class TapRakutenAdvertising(Tap):
@@ -140,9 +145,9 @@ class TapRakutenAdvertising(Tap):
         ),
     ).to_dict()
 
-    def discover_streams(self) -> list:
+    def discover_streams(self) -> list[RakutenAdvertisingStream]:
         """Return a list of discovered streams."""
-        stream_list = [
+        stream_list: list[RakutenAdvertisingStream] = [
             streams.AdvertisersStream(self),
             streams.EventsStream(self),
             streams.AdvertiserSearchStream(self),
