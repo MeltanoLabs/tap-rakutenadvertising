@@ -68,11 +68,81 @@ class TapRakutenAdvertising(Tap):
             default=-1,
             description="Banner size code for the banner_links stream (-1 = all)",
         ),
+        th.Property(
+            "security_token",
+            th.StringType(nullable=True),
+            secret=True,
+            title="Security Token",
+            description=(
+                "Security token for the Advanced Reports API. "
+                "This is NOT the Bearer token. "
+                "Obtain from Rakuten publisher dashboard. "
+                "Required for advanced_reports_* streams."
+            ),
+        ),
+        th.Property(
+            "advanced_reports_pay_id",
+            th.IntegerType(nullable=True),
+            description=(
+                "Payment ID for Advanced Reports advertiser payments streams "
+                "(reportid 2/22). Retrieve from the payment history summary report."
+            ),
+        ),
+        th.Property(
+            "advanced_reports_invoice_id",
+            th.IntegerType(nullable=True),
+            description=(
+                "Invoice ID for Advanced Reports payment details streams "
+                "(reportid 3/23). Retrieve from the advertiser payments report."
+            ),
+        ),
+        th.Property(
+            "advanced_reports_network_id",
+            th.IntegerType(nullable=True),
+            description="Optional network ID filter for Advanced Reports (1, 3, 5, 41)",
+        ),
+        th.Property(
+            "reporting_api_token",
+            th.StringType(nullable=True),
+            secret=True,
+            title="Reporting Platform API Token",
+            description=(
+                "API token for the Rakuten Reporting Platform "
+                "(ran-reporting.rakutenmarketing.com). "
+                "Found in the report URL under 'token=' parameter. "
+                "Required for reporting_* streams."
+            ),
+        ),
+        th.Property(
+            "reporting_report_keys",
+            th.StringType(nullable=True),
+            title="Reporting Platform Report Keys",
+            description=(
+                "Comma-separated report keys for the Reporting Platform "
+                "(e.g. 'data_team_monthly_report_us,sales-and-activity-report'). "
+                "Each key becomes a separate stream."
+            ),
+        ),
+        th.Property(
+            "reporting_region",
+            th.StringType(nullable=True),
+            default="en",
+            description="Region code for the Reporting Platform API (default: en)",
+        ),
+        th.Property(
+            "reporting_date_type",
+            th.StringType(nullable=True),
+            default="transaction",
+            description=(
+                "Date type for Reporting Platform reports. "
+                "One of: transaction, process."
+            ),
+        ),
     ).to_dict()
 
     def discover_streams(self) -> list:
         """Return a list of discovered streams."""
-        return [
+        stream_list = [
             streams.AdvertisersStream(self),
             streams.EventsStream(self),
             streams.AdvertiserSearchStream(self),
@@ -87,6 +157,24 @@ class TapRakutenAdvertising(Tap):
             streams.DRMLinksStream(self),
             streams.CreativeCategoriesStream(self),
         ]
+        if self.config.get("security_token"):
+            stream_list.extend([
+                streams.AdvancedReportsPaymentHistoryStream(self),
+                streams.AdvancedReportsAdvertiserPaymentsV1Stream(self),
+                streams.AdvancedReportsPaymentDetailsV1Stream(self),
+                streams.AdvancedReportsAdvertiserPaymentsV2Stream(self),
+                streams.AdvancedReportsPaymentDetailsV2Stream(self),
+            ])
+        if self.config.get("reporting_api_token") and self.config.get(
+            "reporting_report_keys"
+        ):
+            for raw_key in self.config["reporting_report_keys"].split(","):
+                report_key = raw_key.strip()
+                if report_key:
+                    stream_list.append(
+                        streams.ReportingPlatformStream(self, report_key=report_key)
+                    )
+        return stream_list
 
 
 if __name__ == "__main__":

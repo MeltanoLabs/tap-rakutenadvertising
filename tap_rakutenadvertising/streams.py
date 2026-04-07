@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import datetime
+import io
 import sys
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -10,6 +12,7 @@ from urllib.parse import parse_qs
 
 import xmltodict
 from singer_sdk import OpenAPISchema, StreamSchema
+from singer_sdk import typing as th
 from singer_sdk.pagination import SinglePagePaginator
 
 from tap_rakutenadvertising.client import (
@@ -26,11 +29,13 @@ else:
     from typing_extensions import override
 
 if TYPE_CHECKING:
-    from collections.abc import Iterable
+    from collections.abc import Callable, Iterable
     from urllib.parse import ParseResult
 
     import requests
     from singer_sdk.helpers.types import Context
+
+    from tap_rakutenadvertising.tap import TapRakutenAdvertising
 
 OPENAPI_SOURCE = OpenAPISchema(files("tap_rakutenadvertising").joinpath("openapi.json"))
 
@@ -42,6 +47,9 @@ OFFERS_PAGE_SIZE = 200
 COMMISSIONING_LISTS_PAGE_SIZE = 200
 COUPONS_PAGE_SIZE = 500
 PRODUCT_SEARCH_PAGE_SIZE = 100
+
+HTTP_FORBIDDEN = 403
+HTTP_INTERNAL_SERVER_ERROR = 500
 
 
 def _strip_ns1(record: dict) -> dict:
@@ -91,20 +99,53 @@ class EventsStream(RakutenAdvertisingStream):
     def get_new_paginator(self) -> EventsPaginator:
         return EventsPaginator(page_size=EVENTS_PAGE_SIZE)
 
+    @staticmethod
+    def _format_events_date(date_str: str) -> str:
+        """Ensure date is in 'YYYY-MM-DD HH:mm:ss' format for the Events API.
+
+        Also clamps the date to no more than 29 days ago, because the Events
+        API rejects requests older than 30 days.
+        """
+        max_age = datetime.timedelta(days=29)
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        earliest_allowed = now_utc - max_age
+
+        try:
+            dt = datetime.datetime.fromisoformat(
+                date_str.replace("Z", "+00:00"),
+            )
+            # Make naive datetimes timezone-aware (assume UTC)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=datetime.timezone.utc)
+            dt = max(dt, earliest_allowed)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, AttributeError):
+            # Best-effort: if we can't parse, return earliest_allowed
+            return earliest_allowed.strftime("%Y-%m-%d %H:%M:%S")
+
     @override
     def get_url_params(
         self,
         context: Context | None,
         next_page_token: Any | None,
     ) -> dict[str, Any]:
+        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        end_date_str = now_utc.strftime("%Y-%m-%d %H:%M:%S")
+
         params: dict[str, Any] = {
             "page": next_page_token,
             "limit": EVENTS_PAGE_SIZE,
         }
         if start_value := self.get_starting_replication_key_value(context):
-            params["process_date_start"] = start_value
+            params["process_date_start"] = self._format_events_date(
+                str(start_value),
+            )
+            params["process_date_end"] = end_date_str
         elif self.config.get("start_date"):
-            params["process_date_start"] = self.config["start_date"]
+            params["process_date_start"] = self._format_events_date(
+                self.config["start_date"],
+            )
+            params["process_date_end"] = end_date_str
         return params
 
 
@@ -192,6 +233,29 @@ class PublisherContributedConversionsStream(RakutenAdvertisingStream):
     records_jsonpath = "$.data[*]"
 
     schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="ContributedConversion")
+
+    @override
+    def validate_response(self, response: requests.Response) -> None:
+        """Handle 403 gracefully — the token may lack permission for this endpoint."""
+        is_forbidden = (
+            response.status_code == HTTP_FORBIDDEN
+            and "cannot consume this service" in response.text.lower()
+        )
+        if is_forbidden:
+            self.logger.warning(
+                "publisher_contributed_conversions: API returned 403 "
+                "'You cannot consume this service'. The current token does "
+                "not have access to this endpoint. Returning 0 records.",
+            )
+            return
+        super().validate_response(response)
+
+    @override
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        """Yield nothing if the API returned a 403."""
+        if response.status_code == HTTP_FORBIDDEN:
+            return
+        yield from super().parse_response(response)
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
@@ -449,6 +513,17 @@ def _format_date_mmddyyyy(date_str: str | None) -> str:
         return datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
 
 
+def _format_date_yyyymmdd(date_str: str | None) -> str:
+    """Convert an ISO date string or YYYY-MM-DD to YYYYMMDD format."""
+    if not date_str:
+        return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+    try:
+        dt = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return dt.strftime("%Y%m%d")
+    except ValueError:
+        return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+
+
 class TextLinksStream(RakutenAdvertisingStream):
     """Text Links stream from Link Locator API (XML response, path-based pagination)."""
 
@@ -665,8 +740,27 @@ class CreativeCategoriesStream(RakutenAdvertisingStream):
         return {}
 
     @override
+    def validate_response(self, response: requests.Response) -> None:
+        """Handle 500 'Invalid Merchant ID' gracefully instead of crashing."""
+        is_invalid_merchant = (
+            response.status_code == HTTP_INTERNAL_SERVER_ERROR
+            and "Invalid Merchant ID" in response.text
+        )
+        if is_invalid_merchant:
+            self.logger.warning(
+                "creative_categories: API returned 'Invalid Merchant ID' for "
+                "advertiser_id=%s. Set link_locator_advertiser_id to a valid "
+                "advertiser ID. Returning 0 records.",
+                self.config.get("link_locator_advertiser_id", -1),
+            )
+            return
+        super().validate_response(response)
+
+    @override
     def parse_response(self, response: requests.Response) -> Iterable[dict]:
         """Parse XML response from Creative Categories API."""
+        if response.status_code == HTTP_INTERNAL_SERVER_ERROR:
+            return
         data = xmltodict.parse(response.text)
         root = next(iter(data.values()))
         response_items = root.get("ns1:getCreativeCategoriesResponse", [])
@@ -680,3 +774,326 @@ class CreativeCategoriesStream(RakutenAdvertisingStream):
                 ret = [ret]
             for record in ret:
                 yield _strip_ns1(record)
+
+
+# ---------------------------------------------------------------------------
+# Advanced Reports streams
+# ---------------------------------------------------------------------------
+
+
+def _open_schema(*properties: th.Property) -> dict:
+    """Build a JSON Schema dict that allows additional properties beyond those listed."""
+    schema = th.PropertiesList(*properties).to_dict()
+    schema["additionalProperties"] = True
+    return schema
+
+
+class AdvancedReportsBaseStream(RakutenAdvertisingStream):
+    """Base class for Advanced Reports streams from /advancedreports/1.0."""
+
+    path = "/advancedreports/1.0"
+    replication_key = None
+
+    report_id: ClassVar[int]
+
+    @override
+    def get_new_paginator(self) -> SinglePagePaginator:
+        return SinglePagePaginator()
+
+    def _get_report_params(self, context: Context | None) -> dict[str, Any]:  # noqa: ARG002
+        """Return report-specific query parameters. Override in subclasses."""
+        return {}
+
+    @override
+    def get_url_params(
+        self,
+        context: Context | None,
+        next_page_token: Any | None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "reportid": self.report_id,
+            "token": self.config["security_token"],
+        }
+        if nid := self.config.get("advanced_reports_network_id"):
+            params["nid"] = nid
+        params.update(self._get_report_params(context))
+        return params
+
+    @override
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        """Parse response, handling both JSON and CSV formats."""
+        content_type = response.headers.get("content-type", "")
+        if "json" in content_type:
+            data = response.json()
+            if isinstance(data, list):
+                yield from data
+            elif isinstance(data, dict):
+                yield data
+        else:
+            reader = csv.DictReader(io.StringIO(response.text))
+            yield from reader
+
+
+class AdvancedReportsPaymentHistoryStream(AdvancedReportsBaseStream):
+    """Payment History Summary (reportid=1)."""
+
+    name = "advanced_reports_payment_history"
+    report_id = 1
+    primary_keys = ("payment_id",)
+
+    schema = _open_schema(
+        th.Property("payment_id", th.StringType),
+        th.Property("date", th.StringType),
+        th.Property("payment_type", th.StringType),
+        th.Property("check_number", th.StringType),
+        th.Property("currency_code", th.StringType),
+        th.Property("total_commission_amount_paid", th.StringType),
+        th.Property("payment_status", th.StringType),
+    )
+
+    @override
+    def _get_report_params(self, context: Context | None) -> dict[str, Any]:
+        return {
+            "bdate": _format_date_yyyymmdd(self.config.get("start_date")),
+            "edate": datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d"),
+        }
+
+
+class AdvancedReportsAdvertiserPaymentsV1Stream(AdvancedReportsBaseStream):
+    """Advertiser Payments History v1 (reportid=2)."""
+
+    name = "advanced_reports_advertiser_payments_v1"
+    report_id = 2
+    primary_keys = ("invoice_id",)
+
+    schema = _open_schema(
+        th.Property("invoice_id", th.StringType),
+        th.Property("advertiser_name", th.StringType),
+        th.Property("mid", th.StringType),
+        th.Property("amount", th.StringType),
+        th.Property("currency", th.StringType),
+    )
+
+    @override
+    def _get_report_params(self, context: Context | None) -> dict[str, Any]:
+        pay_id = self.config.get("advanced_reports_pay_id")
+        if not pay_id:
+            self.logger.warning(
+                "Skipping %s: advanced_reports_pay_id not configured.",
+                self.name,
+            )
+            return {}
+        return {"payid": pay_id}
+
+    @override
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        if not self.config.get("advanced_reports_pay_id"):
+            return
+        yield from super().parse_response(response)
+
+
+class AdvancedReportsPaymentDetailsV1Stream(AdvancedReportsBaseStream):
+    """Payment Details v1 (reportid=3)."""
+
+    name = "advanced_reports_payment_details_v1"
+    report_id = 3
+    primary_keys = ("transaction_id",)
+
+    schema = _open_schema(
+        th.Property("transaction_id", th.StringType),
+        th.Property("order_id", th.StringType),
+        th.Property("transaction_date", th.StringType),
+        th.Property("commission", th.StringType),
+        th.Property("advertiser_name", th.StringType),
+    )
+
+    @override
+    def _get_report_params(self, context: Context | None) -> dict[str, Any]:
+        invoice_id = self.config.get("advanced_reports_invoice_id")
+        if not invoice_id:
+            self.logger.warning(
+                "Skipping %s: advanced_reports_invoice_id not configured.",
+                self.name,
+            )
+            return {}
+        return {"invoiceid": invoice_id}
+
+    @override
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        if not self.config.get("advanced_reports_invoice_id"):
+            return
+        yield from super().parse_response(response)
+
+
+class AdvancedReportsAdvertiserPaymentsV2Stream(AdvancedReportsBaseStream):
+    """Advertiser Payments History v2 (reportid=22)."""
+
+    name = "advanced_reports_advertiser_payments_v2"
+    report_id = 22
+    primary_keys = ("invoice_id",)
+
+    schema = _open_schema(
+        th.Property("invoice_id", th.StringType),
+        th.Property("advertiser_name", th.StringType),
+        th.Property("mid", th.StringType),
+        th.Property("amount", th.StringType),
+        th.Property("currency", th.StringType),
+    )
+
+    @override
+    def _get_report_params(self, context: Context | None) -> dict[str, Any]:
+        pay_id = self.config.get("advanced_reports_pay_id")
+        if not pay_id:
+            self.logger.warning(
+                "Skipping %s: advanced_reports_pay_id not configured.",
+                self.name,
+            )
+            return {}
+        return {"payid": pay_id}
+
+    @override
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        if not self.config.get("advanced_reports_pay_id"):
+            return
+        yield from super().parse_response(response)
+
+
+class AdvancedReportsPaymentDetailsV2Stream(AdvancedReportsBaseStream):
+    """Payment Details v2 (reportid=23)."""
+
+    name = "advanced_reports_payment_details_v2"
+    report_id = 23
+    primary_keys = ("transaction_id",)
+
+    schema = _open_schema(
+        th.Property("transaction_id", th.StringType),
+        th.Property("order_id", th.StringType),
+        th.Property("transaction_date", th.StringType),
+        th.Property("commission", th.StringType),
+        th.Property("advertiser_name", th.StringType),
+    )
+
+    @override
+    def _get_report_params(self, context: Context | None) -> dict[str, Any]:
+        invoice_id = self.config.get("advanced_reports_invoice_id")
+        if not invoice_id:
+            self.logger.warning(
+                "Skipping %s: advanced_reports_invoice_id not configured.",
+                self.name,
+            )
+            return {}
+        return {"invoiceid": invoice_id}
+
+    @override
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        if not self.config.get("advanced_reports_invoice_id"):
+            return
+        yield from super().parse_response(response)
+
+
+# ---------------------------------------------------------------------------
+# Reporting Platform stream (ran-reporting.rakutenmarketing.com)
+# ---------------------------------------------------------------------------
+
+# Open schema for CSV reports: no predefined properties, all columns pass through.
+_REPORTING_PLATFORM_SCHEMA: dict[str, Any] = {
+    "type": "object",
+    "properties": {},
+    "additionalProperties": True,
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+}
+
+
+class ReportingPlatformStream(RakutenAdvertisingStream):
+    """Stream for Rakuten Reporting Platform (ran-reporting.rakutenmarketing.com).
+
+    This targets the same API that Fivetran uses. Each configured report key
+    becomes a separate stream named ``reporting_<report_key>``.
+
+    The API returns CSV data. All columns are emitted as-is; the open schema
+    (``additionalProperties: true``) allows every column through.
+    """
+
+    path = "/"
+    primary_keys: ClassVar[tuple[str, ...]] = ()
+    replication_key = None
+
+    schema: ClassVar[dict] = _REPORTING_PLATFORM_SCHEMA
+
+    _report_key: str
+
+    def __init__(self, tap: TapRakutenAdvertising, report_key: str) -> None:
+        """Initialize a Reporting Platform stream for the given report key."""
+        self._report_key = report_key
+        stream_name = "reporting_" + report_key.replace("-", "_")
+        super().__init__(tap=tap, name=stream_name)
+
+    @override
+    @property
+    def url_base(self) -> str:
+        """Return Rakuten Reporting Platform URL."""
+        return "https://ran-reporting.rakutenmarketing.com"
+
+    @override
+    @property
+    def authenticator(self) -> Callable:  # type: ignore[override]
+        """No Bearer auth; the token is passed as a query parameter instead.
+
+        Return a pass-through callable so the SDK's request pipeline works,
+        but no Authorization header is added.
+        """
+        return lambda r: r
+
+    @override
+    def get_new_paginator(self) -> SinglePagePaginator:
+        return SinglePagePaginator()
+
+    @override
+    def get_url(self, context: Context | None) -> str:
+        """Build URL with region and report key path segments."""
+        region = self.config.get("reporting_region", "en")
+        return f"{self.url_base}/{region}/reports/{self._report_key}/filters"
+
+    @override
+    def get_url_params(
+        self,
+        context: Context | None,
+        next_page_token: Any | None,
+    ) -> dict[str, Any]:
+        params: dict[str, Any] = {
+            "token": self.config["reporting_api_token"],
+            "include_summary": "N",
+            "tz": "GMT",
+            "date_type": self.config.get("reporting_date_type", "transaction"),
+        }
+        start = self.config.get("start_date")
+        if start:
+            params["start_date"] = _format_date_yyyy_mm_dd(start)
+        else:
+            six_months_ago = (
+                datetime.datetime.now(datetime.timezone.utc)
+                - datetime.timedelta(days=180)
+            )
+            params["start_date"] = six_months_ago.strftime("%Y-%m-%d")
+
+        params["end_date"] = datetime.datetime.now(datetime.timezone.utc).strftime(
+            "%Y-%m-%d"
+        )
+        return params
+
+    @override
+    def parse_response(self, response: requests.Response) -> Iterable[dict]:
+        """Parse CSV response from Reporting Platform API."""
+        response.encoding = "utf-8-sig"
+        reader = csv.DictReader(io.StringIO(response.text))
+        for row in reader:
+            yield {k.strip(): v for k, v in row.items()}
+
+
+def _format_date_yyyy_mm_dd(date_str: str) -> str:
+    """Convert an ISO date string to YYYY-MM-DD format for the Reporting Platform."""
+    try:
+        dt = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return dt.strftime("%Y-%m-%d")
+    except (ValueError, AttributeError):
+        return date_str

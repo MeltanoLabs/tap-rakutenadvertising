@@ -71,6 +71,62 @@ plugins:
       description: Banner size code for the banner_links stream (-1 = all).
       value: -1
 
+    - name: security_token
+      kind: password
+      label: Security Token
+      description: >
+        Security token for the Advanced Reports API. This is NOT the Bearer token.
+        Obtain from Rakuten publisher dashboard. Required for advanced_reports_* streams.
+      sensitive: true
+
+    - name: advanced_reports_pay_id
+      kind: integer
+      label: Advanced Reports Payment ID
+      description: >
+        Payment ID for Advanced Reports advertiser payments streams (reportid 2/22).
+        Retrieve from the payment history summary report.
+
+    - name: advanced_reports_invoice_id
+      kind: integer
+      label: Advanced Reports Invoice ID
+      description: >
+        Invoice ID for Advanced Reports payment details streams (reportid 3/23).
+        Retrieve from the advertiser payments report.
+
+    - name: advanced_reports_network_id
+      kind: integer
+      label: Advanced Reports Network ID
+      description: Optional network ID filter for Advanced Reports (1, 3, 5, 41).
+
+    - name: reporting_api_token
+      kind: password
+      label: Reporting Platform API Token
+      description: >
+        API token for the Rakuten Reporting Platform (ran-reporting.rakutenmarketing.com).
+        Found in the report URL under the 'token=' parameter.
+        Required for reporting_* streams.
+      sensitive: true
+
+    - name: reporting_report_keys
+      kind: string
+      label: Reporting Platform Report Keys
+      description: >
+        Comma-separated report keys for the Reporting Platform
+        (e.g. 'data_team_monthly_report_us,sales-and-activity-report').
+        Each key becomes a separate stream.
+
+    - name: reporting_region
+      kind: string
+      label: Reporting Platform Region
+      description: Region code for the Reporting Platform API (default en).
+      value: en
+
+    - name: reporting_date_type
+      kind: string
+      label: Reporting Platform Date Type
+      description: Date type for Reporting Platform reports. One of transaction, process.
+      value: transaction
+
     settings_group_validation:
     - [auth_token]
 
