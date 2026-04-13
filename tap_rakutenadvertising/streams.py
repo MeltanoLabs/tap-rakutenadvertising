@@ -1052,7 +1052,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         response.encoding = "utf-8-sig"
         reader = csv.DictReader(io.StringIO(response.text))
         for row in reader:
-            yield {k.strip(): v for k, v in row.items()}
+            yield {k.strip(): v for k, v in row.items() if k is not None and k.strip()}
 
 
 def _format_date_yyyy_mm_dd(date_str: str) -> str:
