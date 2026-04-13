@@ -20,6 +20,7 @@ from tap_rakutenadvertising.client import (
     LinkLocatorPaginator,
     RakutenAdvertisingStream,
     RakutenPaginator,
+    RakutenXMLStream,
     XMLPagePaginator,
 )
 
@@ -149,7 +150,7 @@ class EventsStream(RakutenAdvertisingStream):
         return params
 
 
-class AdvertiserSearchStream(RakutenAdvertisingStream):
+class AdvertiserSearchStream(RakutenXMLStream):
     """Advertiser Search stream from /advertisersearch/1.0 (XML response)."""
 
     name = "advertiser_search"
@@ -366,7 +367,7 @@ class CommissioningListsStream(RakutenAdvertisingStream):
         return row
 
 
-class CouponsStream(RakutenAdvertisingStream):
+class CouponsStream(RakutenXMLStream):
     """Coupons stream from /coupon/1.0 (XML response)."""
 
     name = "coupons"
@@ -386,7 +387,10 @@ class CouponsStream(RakutenAdvertisingStream):
         context: Context | None,
         next_page_token: Any | None,
     ) -> dict[str, Any]:
-        return {"pagenumber": next_page_token, "resultsperpage": COUPONS_PAGE_SIZE}
+        params = super().get_url_params(context, next_page_token)
+        params["pagenumber"] = next_page_token
+        params["resultsperpage"] = COUPONS_PAGE_SIZE
+        return params
 
     @override
     def parse_response(self, response: requests.Response) -> Iterable[dict]:
@@ -419,7 +423,7 @@ class CouponsStream(RakutenAdvertisingStream):
             yield record
 
 
-class ProductSearchStream(RakutenAdvertisingStream):
+class ProductSearchStream(RakutenXMLStream):
     """Product Search stream from /productsearch/1.0 (XML response)."""
 
     name = "product_search"
@@ -439,15 +443,12 @@ class ProductSearchStream(RakutenAdvertisingStream):
         context: Context | None,
         next_page_token: Any | None,
     ) -> dict[str, Any]:
-        params: dict[str, Any] = {
-            "pagenumber": next_page_token,
-            "max": PRODUCT_SEARCH_PAGE_SIZE,
-        }
-        keyword = self.config.get("product_search_keyword")
-        if keyword:
+        params = super().get_url_params(context, next_page_token)
+        params["pagenumber"] = next_page_token
+        params["max"] = PRODUCT_SEARCH_PAGE_SIZE
+        if keyword := self.config.get("product_search_keyword"):
             params["keyword"] = keyword
-        mid = self.config.get("product_search_mid")
-        if mid:
+        if mid := self.config.get("product_search_mid"):
             params["mid"] = mid
         return params
 
@@ -524,7 +525,7 @@ def _format_date_yyyymmdd(date_str: str | None) -> str:
         return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
 
 
-class TextLinksStream(RakutenAdvertisingStream):
+class TextLinksStream(RakutenXMLStream):
     """Text Links stream from Link Locator API (XML response, path-based pagination)."""
 
     name = "text_links"
@@ -548,14 +549,6 @@ class TextLinksStream(RakutenAdvertisingStream):
         end = datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
         page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1
         return f"{self.url_base}/linklocator/1.0/getTextLinks/{adv}/{cat}/{start}/{end}/-1/{page}"
-
-    @override
-    def get_url_params(
-        self,
-        context: Context | None,
-        next_page_token: Any | None,
-    ) -> dict[str, Any]:
-        return {}
 
     @override
     def prepare_request(
@@ -585,7 +578,7 @@ class TextLinksStream(RakutenAdvertisingStream):
                 yield _strip_ns1(record)
 
 
-class BannerLinksStream(RakutenAdvertisingStream):
+class BannerLinksStream(RakutenXMLStream):
     """Banner Links stream from Link Locator API (XML response, path-based pagination)."""
 
     name = "banner_links"
@@ -615,14 +608,6 @@ class BannerLinksStream(RakutenAdvertisingStream):
         )
 
     @override
-    def get_url_params(
-        self,
-        context: Context | None,
-        next_page_token: Any | None,
-    ) -> dict[str, Any]:
-        return {}
-
-    @override
     def prepare_request(
         self,
         context: Context | None,
@@ -650,7 +635,7 @@ class BannerLinksStream(RakutenAdvertisingStream):
                 yield _strip_ns1(record)
 
 
-class DRMLinksStream(RakutenAdvertisingStream):
+class DRMLinksStream(RakutenXMLStream):
     """DRM Links stream from Link Locator API (XML response, path-based pagination)."""
 
     name = "drm_links"
@@ -676,14 +661,6 @@ class DRMLinksStream(RakutenAdvertisingStream):
         return f"{self.url_base}/linklocator/1.0/getDRMLinks/{adv}/{cat}/{start}/{end}/-1/{page}"
 
     @override
-    def get_url_params(
-        self,
-        context: Context | None,
-        next_page_token: Any | None,
-    ) -> dict[str, Any]:
-        return {}
-
-    @override
     def prepare_request(
         self,
         context: Context | None,
@@ -711,7 +688,7 @@ class DRMLinksStream(RakutenAdvertisingStream):
                 yield _strip_ns1(record)
 
 
-class CreativeCategoriesStream(RakutenAdvertisingStream):
+class CreativeCategoriesStream(RakutenXMLStream):
     """Creative Categories stream from Link Locator API (XML response)."""
 
     name = "creative_categories"
@@ -730,14 +707,6 @@ class CreativeCategoriesStream(RakutenAdvertisingStream):
         """Build URL with advertiser ID path parameter."""
         adv = self.config.get("link_locator_advertiser_id", -1)
         return f"{self.url_base}/linklocator/1.0/getCreativeCategories/{adv}"
-
-    @override
-    def get_url_params(
-        self,
-        context: Context | None,
-        next_page_token: Any | None,
-    ) -> dict[str, Any]:
-        return {}
 
     @override
     def validate_response(self, response: requests.Response) -> None:
