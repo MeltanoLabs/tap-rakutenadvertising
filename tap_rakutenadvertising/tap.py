@@ -21,8 +21,8 @@ class TapRakutenAdvertising(Tap):
     config_jsonschema = th.PropertiesList(
         th.Property(
             "auth_token",
-            th.StringType(nullable=False),
-            required=True,
+            th.StringType(nullable=True),
+            required=False,
             secret=True,
             title="Auth Token",
             description="The token to authenticate against RakutenAdvertising",
@@ -147,22 +147,24 @@ class TapRakutenAdvertising(Tap):
 
     def discover_streams(self) -> list[RakutenAdvertisingStream]:
         """Return a list of discovered streams."""
-        stream_list: list[RakutenAdvertisingStream] = [
-            streams.AdvertisersStream(self),
-            streams.EventsStream(self),
-            streams.AdvertiserSearchStream(self),
-            streams.PartnershipsStream(self),
-            streams.PublisherContributedConversionsStream(self),
-            streams.OffersStream(self),
-            streams.CommissioningListsStream(self),
-            streams.CouponsStream(self),
-            streams.ProductSearchStream(self),
-            streams.TextLinksStream(self),
-            streams.BannerLinksStream(self),
-            streams.DRMLinksStream(self),
-            streams.CreativeCategoriesStream(self),
-        ]
-        if self.config.get("security_token"):
+        stream_list: list[RakutenAdvertisingStream] = []
+        if self.config.get("auth_token"):
+            stream_list.extend([
+                streams.AdvertisersStream(self),
+                streams.EventsStream(self),
+                streams.AdvertiserSearchStream(self),
+                streams.PartnershipsStream(self),
+                streams.PublisherContributedConversionsStream(self),
+                streams.OffersStream(self),
+                streams.CommissioningListsStream(self),
+                streams.CouponsStream(self),
+                streams.ProductSearchStream(self),
+                streams.TextLinksStream(self),
+                streams.BannerLinksStream(self),
+                streams.DRMLinksStream(self),
+                streams.CreativeCategoriesStream(self),
+            ])
+        if self.config.get("auth_token") and self.config.get("security_token"):
             stream_list.extend([
                 streams.AdvancedReportsPaymentHistoryStream(self),
                 streams.AdvancedReportsAdvertiserPaymentsV1Stream(self),
