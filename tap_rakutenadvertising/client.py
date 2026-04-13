@@ -114,7 +114,7 @@ class RakutenAdvertisingStream(RESTStream):
     @property
     def authenticator(self) -> BearerTokenAuthenticator:
         """Return a new authenticator object."""
-        return BearerTokenAuthenticator(token=self.config["auth_token"])
+        return BearerTokenAuthenticator(token=self.config.get("auth_token", ""))
 
 
 class RakutenXMLStream(RakutenAdvertisingStream):
