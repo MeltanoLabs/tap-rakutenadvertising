@@ -1037,17 +1037,13 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         }
         start = self.config.get("start_date")
         if start:
+            params["date_range"] = "custom"
             params["start_date"] = _format_date_yyyy_mm_dd(start)
-        else:
-            six_months_ago = (
-                datetime.datetime.now(datetime.timezone.utc)
-                - datetime.timedelta(days=180)
+            params["end_date"] = datetime.datetime.now(datetime.timezone.utc).strftime(
+                "%Y-%m-%d"
             )
-            params["start_date"] = six_months_ago.strftime("%Y-%m-%d")
-
-        params["end_date"] = datetime.datetime.now(datetime.timezone.utc).strftime(
-            "%Y-%m-%d"
-        )
+        else:
+            params["date_range"] = "last-30-days"
         return params
 
     @override
