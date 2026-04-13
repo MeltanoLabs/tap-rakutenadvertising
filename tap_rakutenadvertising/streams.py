@@ -1031,7 +1031,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     ) -> dict[str, Any]:
         params: dict[str, Any] = {
             "token": self.config["reporting_api_token"],
-            "include_summary": "N",
+            "include_summary": "Y",
             "tz": "GMT",
             "date_type": self.config.get("reporting_date_type", "transaction"),
         }
