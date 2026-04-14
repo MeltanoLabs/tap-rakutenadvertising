@@ -23,7 +23,6 @@ class TapRakutenAdvertising(Tap):
             "auth_token",
             th.StringType(nullable=True),
             required=False,
-            default="",
             secret=True,
             title="Auth Token",
             description="The token to authenticate against RakutenAdvertising",
