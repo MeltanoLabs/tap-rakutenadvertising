@@ -18,12 +18,8 @@ def _one_week_ago() -> str:
 # Config is loaded from environment variables (populated from .env via conftest.py).
 # In production / Meltano, the same env vars are set by the .env file.
 SAMPLE_CONFIG = {
-    "auth_token": os.environ.get(
-        "TAP_RAKUTENADVERTISING_AUTH_TOKEN", "test_token"
-    ),
-    "start_date": os.environ.get(
-        "TAP_RAKUTENADVERTISING_START_DATE", _one_week_ago()
-    ),
+    "auth_token": os.environ.get("TAP_RAKUTENADVERTISING_AUTH_TOKEN", "test_token"),
+    "start_date": os.environ.get("TAP_RAKUTENADVERTISING_START_DATE", _one_week_ago()),
 }
 
 

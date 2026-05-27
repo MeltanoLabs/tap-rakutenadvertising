@@ -138,10 +138,7 @@ class TapRakutenAdvertising(Tap):
             "reporting_date_type",
             th.StringType(nullable=True),
             default="transaction",
-            description=(
-                "Date type for Reporting Platform reports. "
-                "One of: transaction, process."
-            ),
+            description=("Date type for Reporting Platform reports. One of: transaction, process."),
         ),
     ).to_dict()
 
@@ -149,38 +146,38 @@ class TapRakutenAdvertising(Tap):
         """Return a list of discovered streams."""
         stream_list: list[RakutenAdvertisingStream] = []
         if self.config.get("auth_token"):
-            stream_list.extend([
-                streams.AdvertisersStream(self),
-                streams.EventsStream(self),
-                streams.AdvertiserSearchStream(self),
-                streams.PartnershipsStream(self),
-                streams.PublisherContributedConversionsStream(self),
-                streams.OffersStream(self),
-                streams.CommissioningListsStream(self),
-                streams.CouponsStream(self),
-                streams.ProductSearchStream(self),
-                streams.TextLinksStream(self),
-                streams.BannerLinksStream(self),
-                streams.DRMLinksStream(self),
-                streams.CreativeCategoriesStream(self),
-            ])
+            stream_list.extend(
+                [
+                    streams.AdvertisersStream(self),
+                    streams.EventsStream(self),
+                    streams.AdvertiserSearchStream(self),
+                    streams.PartnershipsStream(self),
+                    streams.PublisherContributedConversionsStream(self),
+                    streams.OffersStream(self),
+                    streams.CommissioningListsStream(self),
+                    streams.CouponsStream(self),
+                    streams.ProductSearchStream(self),
+                    streams.TextLinksStream(self),
+                    streams.BannerLinksStream(self),
+                    streams.DRMLinksStream(self),
+                    streams.CreativeCategoriesStream(self),
+                ]
+            )
         if self.config.get("auth_token") and self.config.get("security_token"):
-            stream_list.extend([
-                streams.AdvancedReportsPaymentHistoryStream(self),
-                streams.AdvancedReportsAdvertiserPaymentsV1Stream(self),
-                streams.AdvancedReportsPaymentDetailsV1Stream(self),
-                streams.AdvancedReportsAdvertiserPaymentsV2Stream(self),
-                streams.AdvancedReportsPaymentDetailsV2Stream(self),
-            ])
-        if self.config.get("reporting_api_token") and self.config.get(
-            "reporting_report_keys"
-        ):
+            stream_list.extend(
+                [
+                    streams.AdvancedReportsPaymentHistoryStream(self),
+                    streams.AdvancedReportsAdvertiserPaymentsV1Stream(self),
+                    streams.AdvancedReportsPaymentDetailsV1Stream(self),
+                    streams.AdvancedReportsAdvertiserPaymentsV2Stream(self),
+                    streams.AdvancedReportsPaymentDetailsV2Stream(self),
+                ]
+            )
+        if self.config.get("reporting_api_token") and self.config.get("reporting_report_keys"):
             for raw_key in self.config["reporting_report_keys"].split(","):
                 report_key = raw_key.strip()
                 if report_key:
-                    stream_list.append(
-                        streams.ReportingPlatformStream(self, report_key=report_key)
-                    )
+                    stream_list.append(streams.ReportingPlatformStream(self, report_key=report_key))
         return stream_list
 
 
