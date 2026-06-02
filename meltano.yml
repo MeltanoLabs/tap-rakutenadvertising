@@ -127,6 +127,12 @@ plugins:
       description: Date type for Reporting Platform reports. One of transaction, process.
       value: transaction
 
+    - name: reporting_skip_lines
+      kind: integer
+      label: Reporting Platform Skip Lines
+      description: Number of header lines to skip in Reporting Platform CSV responses.
+      value: 0
+
     settings_group_validation:
     - [auth_token]
     # Advanced Reports streams require auth_token + security_token

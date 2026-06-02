@@ -140,6 +140,12 @@ class TapRakutenAdvertising(Tap):
             default="transaction",
             description=("Date type for Reporting Platform reports. One of: transaction, process."),
         ),
+        th.Property(
+            "reporting_skip_lines",
+            th.IntegerType(nullable=True),
+            default=0,
+            description="Number of header lines to skip in Reporting Platform CSV responses",
+        ),
     ).to_dict()
 
     def discover_streams(self) -> list[RakutenAdvertisingStream]:

@@ -1046,9 +1046,16 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
 
     @override
     def parse_response(self, response: requests.Response) -> Iterable[dict]:
-        """Parse CSV response from Reporting Platform API."""
+        """Parse CSV response from Reporting Platform API.
+
+        Skips header lines as configured by reporting_skip_lines.
+        """
         response.encoding = "utf-8-sig"
-        reader = csv.DictReader(io.StringIO(response.text))
+        lines = response.text.split("\n")
+
+        skip_lines = self.config.get("reporting_skip_lines", 0)
+        csv_text = "\n".join(lines[skip_lines:])
+        reader = csv.DictReader(io.StringIO(csv_text))
         for row in reader:
             yield {k.strip(): v for k, v in row.items() if k is not None and k.strip()}
 
