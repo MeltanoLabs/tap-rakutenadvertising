@@ -6,10 +6,12 @@ import csv
 import datetime
 import io
 import sys
+from functools import cached_property
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import parse_qs
 
+import requests
 import xmltodict
 from singer_sdk import OpenAPISchema, StreamSchema
 from singer_sdk import typing as th
@@ -33,7 +35,6 @@ if TYPE_CHECKING:
     from collections.abc import Callable, Iterable
     from urllib.parse import ParseResult
 
-    import requests
     from singer_sdk.helpers.types import Context
 
     from tap_rakutenadvertising.tap import TapRakutenAdvertising
@@ -964,14 +965,6 @@ class AdvancedReportsPaymentDetailsV2Stream(AdvancedReportsBaseStream):
 # Reporting Platform stream (ran-reporting.rakutenmarketing.com)
 # ---------------------------------------------------------------------------
 
-# Open schema for CSV reports: no predefined properties, all columns pass through.
-_REPORTING_PLATFORM_SCHEMA: dict[str, Any] = {
-    "type": "object",
-    "properties": {},
-    "additionalProperties": True,
-    "$schema": "https://json-schema.org/draft/2020-12/schema",
-}
-
 
 class ReportingPlatformStream(RakutenAdvertisingStream):
     """Stream for Rakuten Reporting Platform (ran-reporting.rakutenmarketing.com).
@@ -979,15 +972,12 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     This targets the same API that Fivetran uses. Each configured report key
     becomes a separate stream named ``reporting_<report_key>``.
 
-    The API returns CSV data. All columns are emitted as-is; the open schema
-    (``additionalProperties: true``) allows every column through.
+    The API returns CSV data. Schema is dynamically discovered from column headers.
     """
 
     path = "/"
     primary_keys: ClassVar[tuple[str, ...]] = ()
     replication_key = None
-
-    schema: ClassVar[dict] = _REPORTING_PLATFORM_SCHEMA
 
     _report_key: str
 
@@ -996,6 +986,32 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         self._report_key = report_key
         stream_name = "reporting_" + report_key.replace("-", "_")
         super().__init__(tap=tap, name=stream_name)
+
+    @override
+    @cached_property
+    def schema(self) -> dict:
+        url = self.get_url(None)
+        params = self.get_url_params(None, None)
+
+        # We're requesting a date range in the future to get only the headers
+        now = datetime.datetime.now(datetime.timezone.utc)
+        params["start_date"] = (now + datetime.timedelta(days=1)).date().isoformat()
+        params["end_date"] = params["start_date"]
+
+        response = requests.get(url, params=params, timeout=300)
+        response.raise_for_status()
+        response.encoding = "utf-8-sig"
+
+        reader = csv.DictReader(io.StringIO(response.text))
+
+        if not reader.fieldnames:
+            msg = f"No fieldnames in CSV response for {self.name}"
+            raise ValueError(msg)
+
+        # Build schema from CSV column names (as-is, no transformation)
+        return th.PropertiesList(
+            *(th.Property(name, th.StringType) for name in reader.fieldnames)
+        ).to_dict()
 
     @override
     @property
