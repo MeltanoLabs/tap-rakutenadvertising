@@ -987,9 +987,9 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         stream_name = "reporting_" + report_key.replace("-", "_")
         super().__init__(tap=tap, name=stream_name)
 
+    @override
     @cached_property
     def schema(self) -> dict:
-        """Dynamically discover and cache schema from CSV headers."""
         url = self.get_url(None)
         params = self.get_url_params(None, None)
 
@@ -1003,6 +1003,10 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         response.encoding = "utf-8-sig"
 
         reader = csv.DictReader(io.StringIO(response.text))
+
+        if not reader.fieldnames:
+            msg = f"No fieldnames in CSV response for {self.name}"
+            raise ValueError(msg)
 
         # Build schema from CSV column names (as-is, no transformation)
         return th.PropertiesList(
