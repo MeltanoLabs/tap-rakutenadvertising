@@ -95,7 +95,6 @@ uv tool install git+https://github.com/MeltanoLabs/tap-rakutenadvertising.git@ma
 | `reporting_report_keys` | No | — | Comma-separated report keys (each becomes a stream) |
 | `reporting_region` | No | `en` | Region code for the Reporting Platform API |
 | `reporting_date_type` | No | `transaction` | Date type for Reporting Platform (`transaction` or `process`) |
-| `reporting_skip_lines` | No | `0` | Number of header lines to skip in Reporting Platform CSV responses |
 
 A full list of supported settings and capabilities is available by running:
 
