@@ -990,7 +990,6 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     @cached_property
     def schema(self) -> dict:
         """Dynamically discover and cache schema from CSV headers."""
-
         url = self.get_url(None)
         params = self.get_url_params(None, None)
 
