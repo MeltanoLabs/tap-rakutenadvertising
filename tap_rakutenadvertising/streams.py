@@ -1001,32 +1001,33 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
             # Fetch the full response to get CSV headers. The API doesn't support
             # a way to fetch only headers, so we download the whole file but only
             # read the first row to extract column names.
-            response = requests.get(url, params=params, timeout=120)
+            response = requests.get(url, params=params, timeout=300)
             response.raise_for_status()
             response.encoding = "utf-8-sig"
-
             reader = csv.DictReader(io.StringIO(response.text))
-            if reader.fieldnames:
-                # Build schema from CSV column names (as-is, no transformation)
-                column_names = [col.strip() for col in reader.fieldnames if col and col.strip()]
-                properties = {name: {"type": ["string", "null"]} for name in column_names}
-                self._schema = {
-                    "type": "object",
-                    "properties": properties,
-                    "additionalProperties": True,
-                    "$schema": "https://json-schema.org/draft/2020-12/schema",
-                }
-                self.logger.info(
-                    "Discovered %d columns for %s",
-                    len(column_names),
-                    self.name,
-                )
-                return self._schema
-            msg = f"No fieldnames in CSV response for {self.name}"
-            raise ValueError(msg)
         except Exception:
             self.logger.exception("Failed to discover schema for %s", self.name)
             raise
+
+        if not reader.fieldnames:
+            msg = f"No fieldnames in CSV response for {self.name}"
+            raise ValueError(msg)
+
+        # Build schema from CSV column names (as-is, no transformation)
+        column_names = [col.strip() for col in reader.fieldnames if col and col.strip()]
+        properties = {name: {"type": ["string", "null"]} for name in column_names}
+        self._schema = {
+            "type": "object",
+            "properties": properties,
+            "additionalProperties": True,
+            "$schema": "https://json-schema.org/draft/2020-12/schema",
+        }
+        self.logger.info(
+            "Discovered %d columns for %s",
+            len(column_names),
+            self.name,
+        )
+        return self._schema
 
     @override
     @property
