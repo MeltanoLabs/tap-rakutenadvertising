@@ -991,8 +991,6 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     def schema(self) -> dict:
         """Dynamically discover and cache schema from CSV headers."""
 
-        self.logger.info("Discovering schema for %s", self.name)
-
         url = self.get_url(None)
         params = self.get_url_params(None, None)
 
@@ -1006,15 +1004,9 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         reader = csv.DictReader(io.StringIO(response.text))
 
         # Build schema from CSV column names (as-is, no transformation)
-        schema = th.PropertiesList(
+        return th.PropertiesList(
             *(th.Property(name, th.StringType) for name in reader.fieldnames)
-        )
-        self.logger.info(
-            "Discovered %d columns for %s",
-            len(column_names),
-            self.name,
-        )
-        return schema.to_dict()
+        ).to_dict()
 
     @override
     @property
