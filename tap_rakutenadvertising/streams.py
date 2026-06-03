@@ -993,10 +993,9 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
 
         url = self.get_url(None)
         params = self.get_url_params(None, None)
-
-        # Fetch the full response to get CSV headers. The API doesn't support
-        # a way to fetch only headers, so we download the whole file but only
-        # read the first row to extract column names.
+        # We're requesting a date range in the future to get only the headers
+        params["start_date"] = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+        params["end_date"] = params["start_date"]  
         response = requests.get(url, params=params, timeout=300)
         response.raise_for_status()
         response.encoding = "utf-8-sig"
