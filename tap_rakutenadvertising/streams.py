@@ -1012,20 +1012,15 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
             raise ValueError(msg)
 
         # Build schema from CSV column names (as-is, no transformation)
-        column_names = [col.strip() for col in reader.fieldnames if col and col.strip()]
-        properties = {name: {"type": ["string", "null"]} for name in column_names}
-        schema = {
-            "type": "object",
-            "properties": properties,
-            "additionalProperties": True,
-            "$schema": "https://json-schema.org/draft/2020-12/schema",
-        }
+        schema = th.PropertiesList(
+            *(th.Property(name, th.StringType) for name in reader.fieldnames)
+        )
         self.logger.info(
             "Discovered %d columns for %s",
             len(column_names),
             self.name,
         )
-        return schema
+        return schema.to_dict()
 
     @override
     @property
