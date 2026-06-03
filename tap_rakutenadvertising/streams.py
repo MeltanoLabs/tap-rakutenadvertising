@@ -991,25 +991,19 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     def schema(self) -> dict:
         """Dynamically discover and cache schema from CSV headers."""
 
-        # Try to fetch schema from API
-        try:
-            self.logger.info("Discovering schema for %s", self.name)
-            url = self.get_url(None)
-            params = self.get_url_params(None, None)
-            # Fetch the full response to get CSV headers. The API doesn't support
-            # a way to fetch only headers, so we download the whole file but only
-            # read the first row to extract column names.
-            response = requests.get(url, params=params, timeout=300)
-            response.raise_for_status()
-            response.encoding = "utf-8-sig"
-            reader = csv.DictReader(io.StringIO(response.text))
-        except Exception:
-            self.logger.exception("Failed to discover schema for %s", self.name)
-            raise
+        self.logger.info("Discovering schema for %s", self.name)
 
-        if not reader.fieldnames:
-            msg = f"No fieldnames in CSV response for {self.name}"
-            raise ValueError(msg)
+        url = self.get_url(None)
+        params = self.get_url_params(None, None)
+
+        # Fetch the full response to get CSV headers. The API doesn't support
+        # a way to fetch only headers, so we download the whole file but only
+        # read the first row to extract column names.
+        response = requests.get(url, params=params, timeout=300)
+        response.raise_for_status()
+        response.encoding = "utf-8-sig"
+
+        reader = csv.DictReader(io.StringIO(response.text))
 
         # Build schema from CSV column names (as-is, no transformation)
         schema = th.PropertiesList(
