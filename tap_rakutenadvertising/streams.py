@@ -966,7 +966,6 @@ class AdvancedReportsPaymentDetailsV2Stream(AdvancedReportsBaseStream):
 # ---------------------------------------------------------------------------
 
 
-
 class ReportingPlatformStream(RakutenAdvertisingStream):
     """Stream for Rakuten Reporting Platform (ran-reporting.rakutenmarketing.com).
 
