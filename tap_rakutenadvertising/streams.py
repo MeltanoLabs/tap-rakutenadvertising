@@ -1091,5 +1091,3 @@ def _format_date_yyyy_mm_dd(date_str: str) -> str:
         return dt.strftime("%Y-%m-%d")
     except (ValueError, AttributeError):
         return date_str
-
-
