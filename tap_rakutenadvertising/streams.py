@@ -995,7 +995,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         params = self.get_url_params(None, None)
         # We're requesting a date range in the future to get only the headers
         params["start_date"] = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
-        params["end_date"] = params["start_date"]  
+        params["end_date"] = params["start_date"]
         response = requests.get(url, params=params, timeout=300)
         response.raise_for_status()
         response.encoding = "utf-8-sig"
