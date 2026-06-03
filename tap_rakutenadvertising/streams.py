@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import datetime
 import io
-import re
 import sys
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any, ClassVar
@@ -981,7 +980,6 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
 
     _report_key: str
     _schema: dict | None = None
-    _column_mapping: dict[str, str] | None = None
 
     def __init__(self, tap: TapRakutenAdvertising, report_key: str) -> None:
         """Initialize a Reporting Platform stream for the given report key."""
@@ -990,7 +988,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         super().__init__(tap=tap, name=stream_name)
 
     @property
-    def schema(self) -> dict:  # type: ignore[override]
+    def schema(self) -> dict:
         """Dynamically discover and cache schema from CSV headers."""
         if self._schema is not None:
             return self._schema
@@ -1009,13 +1007,9 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
 
             reader = csv.DictReader(io.StringIO(response.text))
             if reader.fieldnames:
-                # Build mapping from original to snake_case column names
+                # Build schema from CSV column names (as-is, no transformation)
                 column_names = [col.strip() for col in reader.fieldnames if col and col.strip()]
-                snake_case_names = [_to_snake_case(col) for col in column_names]
-                self._column_mapping = dict(zip(column_names, snake_case_names))
-
-                # Build schema from snake_case column names
-                properties = {name: {"type": ["string", "null"]} for name in snake_case_names}
+                properties = {name: {"type": ["string", "null"]} for name in column_names}
                 self._schema = {
                     "type": "object",
                     "properties": properties,
@@ -1028,8 +1022,10 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
                     self.name,
                 )
                 return self._schema
-        except Exception as e:  # noqa: BLE001
-            self.logger.error("Failed to discover schema for %s: %s", self.name, e)
+            msg = f"No fieldnames in CSV response for {self.name}"
+            raise ValueError(msg)
+        except Exception:
+            self.logger.exception("Failed to discover schema for %s", self.name)
             raise
 
     @override
@@ -1053,7 +1049,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         return SinglePagePaginator()
 
     @override
-    def get_url(self, context: Context | None) -> str:  # noqa: ARG002
+    def get_url(self, context: Context | None) -> str:
         """Build URL with region and report key path segments."""
         region = self.config.get("reporting_region", "en")
         return f"{self.url_base}/{region}/reports/{self._report_key}/filters"
@@ -1061,8 +1057,8 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     @override
     def get_url_params(
         self,
-        context: Context | None,  # noqa: ARG002
-        next_page_token: Any | None,  # noqa: ARG002
+        context: Context | None,
+        next_page_token: Any | None,
     ) -> dict[str, Any]:
         params: dict[str, Any] = {
             "token": self.config["reporting_api_token"],
@@ -1084,21 +1080,8 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         """Parse CSV response from Reporting Platform API."""
         response.encoding = "utf-8-sig"
         reader = csv.DictReader(io.StringIO(response.text))
-
-        # Build column mapping on first row if not already cached
-        if self._column_mapping is None and reader.fieldnames:
-            column_names = [col.strip() for col in reader.fieldnames if col and col.strip()]
-            self._column_mapping = {col: _to_snake_case(col) for col in column_names}
-
         for row in reader:
-            if self._column_mapping:
-                yield {
-                    self._column_mapping.get(k, _to_snake_case(k)): v
-                    for k, v in row.items()
-                    if k is not None and k.strip()
-                }
-            else:
-                yield {k.strip(): v for k, v in row.items() if k is not None and k.strip()}
+            yield {k.strip(): v for k, v in row.items() if k is not None and k.strip()}
 
 
 def _format_date_yyyy_mm_dd(date_str: str) -> str:
@@ -1110,10 +1093,3 @@ def _format_date_yyyy_mm_dd(date_str: str) -> str:
         return date_str
 
 
-def _to_snake_case(name: str) -> str:
-    """Convert a string to snake_case."""
-    # Replace spaces, hyphens, and # with underscores
-    name = re.sub(r"[\s\-#]+", "_", name)
-    # Remove any other non-alphanumeric characters except underscores
-    name = re.sub(r"[^\w]", "", name)
-    return name.lower()
