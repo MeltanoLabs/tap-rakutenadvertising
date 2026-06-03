@@ -6,6 +6,7 @@ import csv
 import datetime
 import io
 import sys
+from functools import cached_property
 from importlib.resources import files
 from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import parse_qs
@@ -979,7 +980,6 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     replication_key = None
 
     _report_key: str
-    _schema: dict | None = None
 
     def __init__(self, tap: TapRakutenAdvertising, report_key: str) -> None:
         """Initialize a Reporting Platform stream for the given report key."""
@@ -987,11 +987,9 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         stream_name = "reporting_" + report_key.replace("-", "_")
         super().__init__(tap=tap, name=stream_name)
 
-    @property
+    @cached_property
     def schema(self) -> dict:
         """Dynamically discover and cache schema from CSV headers."""
-        if self._schema is not None:
-            return self._schema
 
         # Try to fetch schema from API
         try:
@@ -1016,7 +1014,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         # Build schema from CSV column names (as-is, no transformation)
         column_names = [col.strip() for col in reader.fieldnames if col and col.strip()]
         properties = {name: {"type": ["string", "null"]} for name in column_names}
-        self._schema = {
+        schema = {
             "type": "object",
             "properties": properties,
             "additionalProperties": True,
@@ -1027,7 +1025,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
             len(column_names),
             self.name,
         )
-        return self._schema
+        return schema
 
     @override
     @property
