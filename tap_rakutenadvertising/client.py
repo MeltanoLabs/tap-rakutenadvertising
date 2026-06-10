@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import xmltodict
 from singer_sdk.authenticators import BearerTokenAuthenticator
-from singer_sdk.pagination import BaseHATEOASPaginator, BasePageNumberPaginator
+from singer_sdk.pagination import BaseHATEOASPaginator, PageNumberPaginator
 from singer_sdk.streams import RESTStream
 
 if sys.version_info >= (3, 12):
@@ -31,7 +31,7 @@ class RakutenPaginator(BaseHATEOASPaginator):
         return data.get("_metadata", {}).get("_links", {}).get("next")
 
 
-class EventsPaginator(BasePageNumberPaginator):
+class EventsPaginator(PageNumberPaginator):
     """Paginator for the Events API which returns a flat JSON array."""
 
     def __init__(self, page_size: int, *args: Any, **kwargs: Any) -> None:
@@ -46,7 +46,7 @@ class EventsPaginator(BasePageNumberPaginator):
         return len(data) >= self._page_size
 
 
-class XMLPagePaginator(BasePageNumberPaginator):
+class XMLPagePaginator(PageNumberPaginator):
     """Paginator for XML endpoints that include TotalPages in their response."""
 
     def __init__(
@@ -71,7 +71,7 @@ class XMLPagePaginator(BasePageNumberPaginator):
         return current_page < total_pages
 
 
-class LinkLocatorPaginator(BasePageNumberPaginator):
+class LinkLocatorPaginator(PageNumberPaginator):
     """Paginator for Link Locator XML endpoints with path-based pagination."""
 
     def __init__(
