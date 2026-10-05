@@ -262,6 +262,7 @@ def validate_response(self, response: requests.Response) -> None:
         return  # Don't raise
     super().validate_response(response)
 
+
 @override
 def parse_response(self, response: requests.Response) -> Iterable[dict]:
     if response.status_code == HTTP_FORBIDDEN:
@@ -284,9 +285,7 @@ def discover_streams(self) -> list:
         for raw_key in self.config["reporting_report_keys"].split(","):
             report_key = raw_key.strip()
             if report_key:
-                stream_list.append(
-                    streams.ReportingPlatformStream(self, report_key=report_key)
-                )
+                stream_list.append(streams.ReportingPlatformStream(self, report_key=report_key))
 
     return stream_list
 ```
