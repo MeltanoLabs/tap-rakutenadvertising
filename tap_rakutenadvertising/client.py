@@ -16,10 +16,8 @@ else:
     from typing_extensions import override
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     import requests
-    from singer_sdk.helpers.types import Context
+    from singer_sdk.helpers.types import Auth, Context
 
 
 class RakutenPaginator(BaseHATEOASPaginator):
@@ -112,7 +110,7 @@ class RakutenAdvertisingStream(RESTStream):
 
     @override
     @property
-    def authenticator(self) -> BearerTokenAuthenticator:
+    def authenticator(self) -> Auth:
         """Return a new authenticator object."""
         return BearerTokenAuthenticator(token=self.config.get("auth_token", ""))
 
@@ -122,7 +120,7 @@ class RakutenXMLStream(RakutenAdvertisingStream):
 
     @override
     @property
-    def authenticator(self) -> Callable:  # type: ignore[override]
+    def authenticator(self) -> Auth:
         """No Bearer auth; legacy XML endpoints require the token as a query param."""
         return lambda r: r
 

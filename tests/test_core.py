@@ -1,6 +1,6 @@
 """Tests standard tap features using the built-in SDK tests library."""
 
-import datetime
+import datetime as dt
 import os
 
 from singer_sdk.testing import SuiteConfig, get_tap_test_class
@@ -11,8 +11,8 @@ CI = "CI" in os.environ
 
 
 def _one_week_ago() -> str:
-    dt = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=7)
-    return dt.strftime("%Y-%m-%d")
+    val = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=7)
+    return val.strftime("%Y-%m-%d")
 
 
 # Config is loaded from environment variables (populated from .env via conftest.py).

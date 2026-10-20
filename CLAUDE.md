@@ -8,8 +8,8 @@ This document provides guidance for AI coding agents and developers working on t
 - **Source**: Rakuten Advertising (multiple APIs)
 - **Stream Type**: REST (JSON, XML, and CSV responses)
 - **Authentication**: Bearer Token (core), Security Token (advanced reports), API Token (reporting platform)
-- **Framework**: Meltano Singer SDK v0.53.6
-- **Python**: 3.10+
+- **Framework**: [Meltano Singer SDK](https://sdk.meltano.com) (version pinned in `pyproject.toml`)
+- **Python**: see `requires-python` in `pyproject.toml`
 - **Package Manager**: [uv](https://docs.astral.sh/uv/)
 - **Linter**: Ruff (all rules enabled, line length 100)
 - **Build System**: Hatchling with hatch-vcs
@@ -18,19 +18,21 @@ This document provides guidance for AI coding agents and developers working on t
 
 This tap extracts data from three separate Rakuten APIs:
 
-1. **Rakuten Advertising API** (`api.linksynergy.com`) — 13 core streams, Bearer token auth, JSON/XML responses
-2. **Advanced Reports API** (`api.linksynergy.com/advancedreports/1.0`) — 5 streams, separate security token via query param, JSON/CSV responses
+1. **Rakuten Advertising API** (`api.linksynergy.com`) — core streams, Bearer token auth, JSON/XML responses
+2. **Advanced Reports API** (`api.linksynergy.com/advancedreports/1.0`) — report streams, separate security token via query param, JSON/CSV responses
 3. **Reporting Platform** (`ran-reporting.rakutenmarketing.com`) — dynamic streams from report keys, API token via query param, CSV responses
 
 ### Key Components
 
-1. **Tap Class** (`tap_rakutenadvertising/tap.py`): Entry point, 18 config properties, conditional stream registration in `discover_streams()`
-2. **Client** (`tap_rakutenadvertising/client.py`): `RakutenAdvertisingStream` base class, `BearerTokenAuthenticator`, 4 custom paginators
-3. **Streams** (`tap_rakutenadvertising/streams.py`): 20+ stream classes across 3 API categories, OpenAPI + inline schemas
+1. **Tap Class** (`tap_rakutenadvertising/tap.py`): Entry point, `config_jsonschema`, conditional stream registration in `discover_streams()`
+2. **Client** (`tap_rakutenadvertising/client.py`): `RakutenAdvertisingStream` base class, `BearerTokenAuthenticator`, custom paginators
+3. **Streams** (`tap_rakutenadvertising/streams.py`): Stream classes for all three APIs, OpenAPI + inline schemas
 4. **OpenAPI Schema** (`tap_rakutenadvertising/openapi.json`): Schema definitions for core streams, loaded via `OpenAPISchema`/`StreamSchema`
 5. **Tests** (`tests/`): SDK integration tests (`test_core.py`), paginator unit tests (`test_paginators.py`), `.env` loading (`conftest.py`)
 
 ### Stream Categories
+
+`discover_streams()` in `tap.py` is the source of truth; keep this list in sync when adding or removing streams.
 
 **Core Streams** (always registered):
 `advertisers`, `events`, `advertiser_search`, `partnerships`, `publisher_contributed_conversions`, `offers`, `commissioning_lists`, `coupons`, `product_search`, `text_links`, `banner_links`, `drm_links`, `creative_categories`
@@ -70,21 +72,23 @@ Pattern used: override `validate_response()` to detect the error and return earl
 
 ## Dependencies
 
+Versions are pinned in `pyproject.toml` (and locked in `uv.lock`), which is the source of truth; don't duplicate version numbers here.
+
 ### Runtime
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `singer-sdk[faker]` | `~=0.53.6` | Core Singer SDK framework |
-| `requests` | `~=2.33.0` | HTTP client |
-| `xmltodict` | `~=1.0.4` | XML response parsing |
-| `typing-extensions` | `>=4.5.0` | `@override` decorator for Python < 3.12 |
+| Package | Purpose |
+|---------|---------|
+| `singer-sdk[faker]` | Core Singer SDK framework |
+| `requests` | HTTP client |
+| `xmltodict` | XML response parsing |
+| `typing-extensions` | `@override` backport on older Python versions |
 
 ### Test / Dev
 | Package | Purpose |
 |---------|---------|
-| `pytest>=9` | Test runner |
-| `python-dotenv>=1.1` | Load `.env` file in tests |
+| `pytest` | Test runner |
+| `python-dotenv` | Load `.env` file in tests |
 | `singer-sdk[testing]` | SDK integration test suite |
-| `ruff>=0.15` | Linter (all rules, line-length 100) |
+| `ruff` | Linter (all rules, line-length 100) |
 | `mypy` / `ty` | Type checking |
 
 ## Configuration
@@ -98,7 +102,9 @@ Pattern used: override `validate_response()` to detect the error and return earl
 | **Manual CLI** | `config.json` | `tap-rakutenadvertising --config config.json` |
 | **CI** | GitHub Secrets | `TAP_RAKUTENADVERTISING_*` passed via tox `pass_env` |
 
-### All 18 Config Properties
+### Config Properties
+
+`config_jsonschema` in `tap.py` is the source of truth; this table is a quick reference.
 
 | Property | Type | Required | Default | Used By |
 |----------|------|----------|---------|---------|
@@ -262,6 +268,7 @@ def validate_response(self, response: requests.Response) -> None:
         return  # Don't raise
     super().validate_response(response)
 
+
 @override
 def parse_response(self, response: requests.Response) -> Iterable[dict]:
     if response.status_code == HTTP_FORBIDDEN:
@@ -284,9 +291,7 @@ def discover_streams(self) -> list:
         for raw_key in self.config["reporting_report_keys"].split(","):
             report_key = raw_key.strip()
             if report_key:
-                stream_list.append(
-                    streams.ReportingPlatformStream(self, report_key=report_key)
-                )
+                stream_list.append(streams.ReportingPlatformStream(self, report_key=report_key))
 
     return stream_list
 ```
@@ -299,7 +304,7 @@ def discover_streams(self) -> list:
 |------|------|-----------------|
 | `tests/conftest.py` | Loads `.env` file | N/A |
 | `tests/test_core.py` | SDK integration tests (all streams) | Yes |
-| `tests/test_paginators.py` | Unit tests for 4 custom paginators | No |
+| `tests/test_paginators.py` | Unit tests for custom paginators | No |
 
 **Integration tests** use `SuiteConfig(ignore_no_records=True)` because most streams return 0 records for a test publisher account.
 
@@ -328,9 +333,9 @@ def discover_streams(self) -> list:
 tap-rakutenadvertising/
 ├── tap_rakutenadvertising/
 │   ├── __init__.py
-│   ├── tap.py              # Tap class, 18 config properties, discover_streams()
-│   ├── client.py           # Base stream class, authenticator, 4 custom paginators
-│   ├── streams.py          # 20+ stream classes, helpers, schema definitions
+│   ├── tap.py              # Tap class, config schema, discover_streams()
+│   ├── client.py           # Base stream class, authenticator, custom paginators
+│   ├── streams.py          # Stream classes, helpers, schema definitions
 │   └── openapi.json        # OpenAPI schemas for core streams
 ├── tests/
 │   ├── __init__.py
@@ -354,14 +359,14 @@ tap-rakutenadvertising/
 4. **XML Parsing**: Always use `xmltodict.parse()` and handle both dict and list returns (single vs. multiple items).
 5. **CSV Parsing**: Use `response.encoding = "utf-8-sig"` before `csv.DictReader` for Reporting Platform responses.
 6. **State Management**: Don't modify state directly; use SDK methods like `get_starting_replication_key_value()`.
-7. **Timezone Handling**: Use `datetime.timezone.utc` everywhere. Parse ISO 8601 with `.replace("Z", "+00:00")`.
+7. **Timezone Handling**: Use `dt.timezone.utc` everywhere (`import datetime as dt`; never name a local variable `dt`). Parse ISO 8601 with `.replace("Z", "+00:00")`.
 8. **Ruff strictness**: All rules enabled. Run `ruff check` before every commit. Use `# noqa:` sparingly with specific codes.
 
 ## Bumping the Singer SDK Version
 
 1. Check the [deprecation guide](https://sdk.meltano.com/en/latest/deprecation.html)
-2. Update `singer-sdk~=X.Y` in `pyproject.toml`
-3. Run `uv sync && uv run pytest`
+2. Update the `singer-sdk` pin in `pyproject.toml`
+3. Run `uv lock && uv sync && uv run pytest`
 4. Run `uv run pytest -W error::DeprecationWarning`
 5. Check the [changelog](https://github.com/meltano/sdk/blob/main/CHANGELOG.md) for behavioral changes
 

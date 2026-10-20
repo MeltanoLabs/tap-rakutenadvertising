@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import csv
-import datetime
+import datetime as dt
 import io
 import sys
 from functools import cached_property
@@ -32,10 +32,10 @@ else:
     from typing_extensions import override
 
 if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable
+    from collections.abc import Iterable
     from urllib.parse import ParseResult
 
-    from singer_sdk.helpers.types import Context
+    from singer_sdk.helpers.types import Auth, Context
 
     from tap_rakutenadvertising.tap import TapRakutenAdvertising
 
@@ -68,7 +68,7 @@ class AdvertisersStream(RakutenAdvertisingStream):
     replication_key = None
     records_jsonpath = "$.advertisers[*]"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="Advertiser")
+    schema = StreamSchema(OPENAPI_SOURCE, key="Advertiser")
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
@@ -95,7 +95,7 @@ class EventsStream(RakutenAdvertisingStream):
     replication_key = "process_date"
     records_jsonpath = "$[*]"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="Event")
+    schema = StreamSchema(OPENAPI_SOURCE, key="Event")
 
     @override
     def get_new_paginator(self) -> EventsPaginator:
@@ -108,19 +108,17 @@ class EventsStream(RakutenAdvertisingStream):
         Also clamps the date to no more than 29 days ago, because the Events
         API rejects requests older than 30 days.
         """
-        max_age = datetime.timedelta(days=29)
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        max_age = dt.timedelta(days=29)
+        now_utc = dt.datetime.now(dt.timezone.utc)
         earliest_allowed = now_utc - max_age
 
         try:
-            dt = datetime.datetime.fromisoformat(
-                date_str.replace("Z", "+00:00"),
-            )
+            val = dt.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
             # Make naive datetimes timezone-aware (assume UTC)
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=datetime.timezone.utc)
-            dt = max(dt, earliest_allowed)
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
+            if val.tzinfo is None:
+                val = val.replace(tzinfo=dt.timezone.utc)
+            val = max(val, earliest_allowed)
+            return val.strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, AttributeError):
             # Best-effort: if we can't parse, return earliest_allowed
             return earliest_allowed.strftime("%Y-%m-%d %H:%M:%S")
@@ -131,7 +129,7 @@ class EventsStream(RakutenAdvertisingStream):
         context: Context | None,
         next_page_token: Any | None,
     ) -> dict[str, Any]:
-        now_utc = datetime.datetime.now(datetime.timezone.utc)
+        now_utc = dt.datetime.now(dt.timezone.utc)
         end_date_str = now_utc.strftime("%Y-%m-%d %H:%M:%S")
 
         params: dict[str, Any] = {
@@ -159,7 +157,7 @@ class AdvertiserSearchStream(RakutenXMLStream):
     primary_keys = ("mid",)
     replication_key = None
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="AdvertiserSearchMerchant")
+    schema = StreamSchema(OPENAPI_SOURCE, key="AdvertiserSearchMerchant")
 
     @override
     def get_new_paginator(self) -> SinglePagePaginator:
@@ -191,7 +189,7 @@ class PartnershipsStream(RakutenAdvertisingStream):
     replication_key = None
     records_jsonpath = "$.partnerships[*]"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="Partnership")
+    schema = StreamSchema(OPENAPI_SOURCE, key="Partnership")
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
@@ -234,7 +232,7 @@ class PublisherContributedConversionsStream(RakutenAdvertisingStream):
     replication_key = "order_datetime"
     records_jsonpath = "$.data[*]"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="ContributedConversion")
+    schema = StreamSchema(OPENAPI_SOURCE, key="ContributedConversion")
 
     @override
     def validate_response(self, response: requests.Response) -> None:
@@ -279,7 +277,7 @@ class PublisherContributedConversionsStream(RakutenAdvertisingStream):
         if start_dt := self.get_starting_timestamp(context):
             params["start_date"] = start_dt.strftime("%Y-%m-%d")
 
-        params["end_date"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+        params["end_date"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
         return params
 
 
@@ -292,7 +290,7 @@ class OffersStream(RakutenAdvertisingStream):
     replication_key = None
     records_jsonpath = "$.offers[*]"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="Offer")
+    schema = StreamSchema(OPENAPI_SOURCE, key="Offer")
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
@@ -338,7 +336,7 @@ class CommissioningListsStream(RakutenAdvertisingStream):
     replication_key = None
     records_jsonpath = "$.commissioninglists[*]"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="CommissioningList")
+    schema = StreamSchema(OPENAPI_SOURCE, key="CommissioningList")
 
     @override
     def get_new_paginator(self) -> RakutenPaginator:
@@ -376,7 +374,7 @@ class CouponsStream(RakutenXMLStream):
     primary_keys = ("clickurl",)
     replication_key = None
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="Coupon")
+    schema = StreamSchema(OPENAPI_SOURCE, key="Coupon")
 
     @override
     def get_new_paginator(self) -> XMLPagePaginator:
@@ -432,7 +430,7 @@ class ProductSearchStream(RakutenXMLStream):
     primary_keys = ("mid", "sku")
     replication_key = None
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="Product")
+    schema = StreamSchema(OPENAPI_SOURCE, key="Product")
 
     @override
     def get_new_paginator(self) -> XMLPagePaginator:
@@ -507,23 +505,23 @@ class ProductSearchStream(RakutenXMLStream):
 def _format_date_mmddyyyy(date_str: str | None) -> str:
     """Convert an ISO date string or YYYY-MM-DD to MMDDYYYY format."""
     if not date_str:
-        return datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
+        return dt.datetime.now(dt.timezone.utc).strftime("%m%d%Y")
     try:
-        dt = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        return dt.strftime("%m%d%Y")
+        val = dt.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return val.strftime("%m%d%Y")
     except ValueError:
-        return datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
+        return dt.datetime.now(dt.timezone.utc).strftime("%m%d%Y")
 
 
 def _format_date_yyyymmdd(date_str: str | None) -> str:
     """Convert an ISO date string or YYYY-MM-DD to YYYYMMDD format."""
     if not date_str:
-        return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+        return dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d")
     try:
-        dt = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        return dt.strftime("%Y%m%d")
+        val = dt.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return val.strftime("%Y%m%d")
     except ValueError:
-        return datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d")
+        return dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d")
 
 
 class TextLinksStream(RakutenXMLStream):
@@ -535,7 +533,7 @@ class TextLinksStream(RakutenXMLStream):
     replication_key = None
     _response_key = "ns1:getTextLinksResponse"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="TextLink")
+    schema = StreamSchema(OPENAPI_SOURCE, key="TextLink")
 
     @override
     def get_new_paginator(self) -> LinkLocatorPaginator:
@@ -547,7 +545,7 @@ class TextLinksStream(RakutenXMLStream):
         adv = self.config.get("link_locator_advertiser_id", -1)
         cat = self.config.get("link_locator_category_id", -1)
         start = _format_date_mmddyyyy(self.config.get("start_date"))
-        end = datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
+        end = dt.datetime.now(dt.timezone.utc).strftime("%m%d%Y")
         page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1
         return f"{self.url_base}/linklocator/1.0/getTextLinks/{adv}/{cat}/{start}/{end}/-1/{page}"
 
@@ -588,7 +586,7 @@ class BannerLinksStream(RakutenXMLStream):
     replication_key = None
     _response_key = "ns1:getBannerLinksResponse"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="BannerLink")
+    schema = StreamSchema(OPENAPI_SOURCE, key="BannerLink")
 
     @override
     def get_new_paginator(self) -> LinkLocatorPaginator:
@@ -600,7 +598,7 @@ class BannerLinksStream(RakutenXMLStream):
         adv = self.config.get("link_locator_advertiser_id", -1)
         cat = self.config.get("link_locator_category_id", -1)
         start = _format_date_mmddyyyy(self.config.get("start_date"))
-        end = datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
+        end = dt.datetime.now(dt.timezone.utc).strftime("%m%d%Y")
         banner_size = self.config.get("banner_size_code", -1)
         page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1
         return (
@@ -645,7 +643,7 @@ class DRMLinksStream(RakutenXMLStream):
     replication_key = None
     _response_key = "ns1:getDRMLinksResponse"
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="DRMLink")
+    schema = StreamSchema(OPENAPI_SOURCE, key="DRMLink")
 
     @override
     def get_new_paginator(self) -> LinkLocatorPaginator:
@@ -657,7 +655,7 @@ class DRMLinksStream(RakutenXMLStream):
         adv = self.config.get("link_locator_advertiser_id", -1)
         cat = self.config.get("link_locator_category_id", -1)
         start = _format_date_mmddyyyy(self.config.get("start_date"))
-        end = datetime.datetime.now(datetime.timezone.utc).strftime("%m%d%Y")
+        end = dt.datetime.now(dt.timezone.utc).strftime("%m%d%Y")
         page = self._page_token if hasattr(self, "_page_token") and self._page_token else 1
         return f"{self.url_base}/linklocator/1.0/getDRMLinks/{adv}/{cat}/{start}/{end}/-1/{page}"
 
@@ -697,7 +695,7 @@ class CreativeCategoriesStream(RakutenXMLStream):
     primary_keys = ("mid", "catId")
     replication_key = None
 
-    schema: ClassVar[StreamSchema] = StreamSchema(OPENAPI_SOURCE, key="CreativeCategory")
+    schema = StreamSchema(OPENAPI_SOURCE, key="CreativeCategory")
 
     @override
     def get_new_paginator(self) -> SinglePagePaginator:
@@ -825,7 +823,7 @@ class AdvancedReportsPaymentHistoryStream(AdvancedReportsBaseStream):
     def _get_report_params(self, context: Context | None) -> dict[str, Any]:
         return {
             "bdate": _format_date_yyyymmdd(self.config.get("start_date")),
-            "edate": datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%d"),
+            "edate": dt.datetime.now(dt.timezone.utc).strftime("%Y%m%d"),
         }
 
 
@@ -976,7 +974,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
     """
 
     path = "/"
-    primary_keys: ClassVar[tuple[str, ...]] = ()
+    primary_keys = ()
     replication_key = None
 
     _report_key: str
@@ -994,8 +992,8 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         params = self.get_url_params(None, None)
 
         # We're requesting a date range in the future to get only the headers
-        now = datetime.datetime.now(datetime.timezone.utc)
-        params["start_date"] = (now + datetime.timedelta(days=1)).date().isoformat()
+        now = dt.datetime.now(dt.timezone.utc)
+        params["start_date"] = (now + dt.timedelta(days=1)).date().isoformat()
         params["end_date"] = params["start_date"]
 
         response = requests.get(url, params=params, timeout=300)
@@ -1021,7 +1019,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
 
     @override
     @property
-    def authenticator(self) -> Callable:  # type: ignore[override]
+    def authenticator(self) -> Auth:
         """No Bearer auth; the token is passed as a query parameter instead.
 
         Return a pass-through callable so the SDK's request pipeline works,
@@ -1055,7 +1053,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
         if start:
             params["date_range"] = "custom"
             params["start_date"] = _format_date_yyyy_mm_dd(start)
-            params["end_date"] = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d")
+            params["end_date"] = dt.datetime.now(dt.timezone.utc).strftime("%Y-%m-%d")
         else:
             params["date_range"] = "last-30-days"
         return params
@@ -1072,7 +1070,7 @@ class ReportingPlatformStream(RakutenAdvertisingStream):
 def _format_date_yyyy_mm_dd(date_str: str) -> str:
     """Convert an ISO date string to YYYY-MM-DD format for the Reporting Platform."""
     try:
-        dt = datetime.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        return dt.strftime("%Y-%m-%d")
+        val = dt.datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        return val.strftime("%Y-%m-%d")
     except (ValueError, AttributeError):
         return date_str
