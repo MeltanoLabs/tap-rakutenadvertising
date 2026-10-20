@@ -103,6 +103,7 @@ required-version = ">=0.15"
 future-annotations = true
 ignore = [
     "COM812",  # missing-trailing-comma
+    "CPY",     # missing-copyright-notice
 ]
 select = ["ALL"]
 
